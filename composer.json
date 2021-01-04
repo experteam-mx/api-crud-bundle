@@ -19,8 +19,8 @@
         "symfony/http-kernel": "5.1.*",
         "symfony/serializer": "5.1.*",
         "symfony/validator": "5.1.*",
-        "experteam/api-base-bundle": "*@dev",
-        "experteam/api-redis-bundle": "*@dev"
+        "experteam/api-base-bundle": "dev-master",
+        "experteam/api-redis-bundle": "dev-master"
     },
     "autoload": {
         "psr-4": {
@@ -29,18 +29,12 @@
     },
     "repositories": [
         {
-            "type": "path",
-            "url": "../../experteam-bundles/api-base-bundle",
-            "options": {
-                "symlink": false
-            }
+            "type": "vcs",
+            "url":  "https://github.com/experteam-mx/api-base-bundle.git"
         },
         {
-            "type": "path",
-            "url": "../../experteam-bundles/api-redis-bundle",
-            "options": {
-                "symlink": false
-            }
+            "type": "vcs",
+            "url":  "https://github.com/experteam-mx/api-redis-bundle.git"
         }
     ]
 }
