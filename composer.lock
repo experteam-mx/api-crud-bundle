@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0fb348be8fe5412e578894f8716389a1",
+    "content-hash": "93e6283b504ab7bb83e2d929e6a62de1",
     "packages": [
         {
             "name": "antishov/doctrine-extensions-bundle",
@@ -1394,7 +1394,7 @@
             "dist": {
                 "type": "path",
                 "url": "../../experteam-bundles/api-base-bundle",
-                "reference": "fefd23d9152fa976c689670622d2bbd20fe4c59f"
+                "reference": "f24127376ae846d3f5a088d427aed21caffd2d77"
             },
             "require": {
                 "antishov/doctrine-extensions-bundle": "^1.4",
@@ -1439,7 +1439,7 @@
             "dist": {
                 "type": "path",
                 "url": "../../experteam-bundles/api-redis-bundle",
-                "reference": "a6c66c025767af07707432866bb17c9dd199af2f"
+                "reference": "5495d885c139a518d532dca85bf96b8cddc95852"
             },
             "require": {
                 "antishov/doctrine-extensions-bundle": "^1.4",
