@@ -7,12 +7,10 @@ use Experteam\ApiBaseBundle\Service\Param\ParamInterface;
 use Experteam\ApiRedisBundle\Service\RedisClient\RedisClientInterface;
 use Experteam\ApiBaseBundle\Service\RequestUtil\RequestUtilInterface;
 use Experteam\ApiCrudBundle\Service\ViolationUtil\ViolationUtilInterface;
-use FOS\RestBundle\Controller\AbstractFOSRestController;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
-use Symfony\Component\Serializer\Encoder\JsonEncoder;
 use Symfony\Component\Validator\ConstraintViolationList;
 
-class BaseController extends AbstractFOSRestController
+class BaseController extends \Experteam\ApiBaseBundle\Controller\BaseController
 {
     /**
      * @var PaginatorInterface
@@ -20,19 +18,9 @@ class BaseController extends AbstractFOSRestController
     protected $paginator;
 
     /**
-     * @var ParamInterface
-     */
-    protected $param;
-
-    /**
      * @var RedisClientInterface
      */
     protected $redisClient;
-
-    /**
-     * @var RequestUtilInterface
-     */
-    protected $requestUtil;
 
     /**
      * @var ViolationUtilInterface
@@ -48,21 +36,10 @@ class BaseController extends AbstractFOSRestController
      */
     public function __construct(PaginatorInterface $paginator, ParamInterface $param, RedisClientInterface $redisClient, RequestUtilInterface $requestUtil, ViolationUtilInterface $violator)
     {
+        parent::__construct($param, $requestUtil);
         $this->paginator = $paginator;
-        $this->param = $param;
         $this->redisClient = $redisClient;
-        $this->requestUtil = $requestUtil;
         $this->violator = $violator;
-    }
-
-    /**
-     * @param string $data
-     * @return mixed
-     */
-    protected function jsonDecode(string $data)
-    {
-        $jsonEncoder = new JsonEncoder();
-        return $jsonEncoder->decode($data, 'json');
     }
 
     /**

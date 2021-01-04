@@ -1394,13 +1394,14 @@
             "dist": {
                 "type": "path",
                 "url": "../../experteam-bundles/api-base-bundle",
-                "reference": "569b52c4ebaf0667fcb9fcde9f9b47e0111315c2"
+                "reference": "fefd23d9152fa976c689670622d2bbd20fe4c59f"
             },
             "require": {
                 "antishov/doctrine-extensions-bundle": "^1.4",
                 "doctrine/doctrine-bundle": "2.0.*",
                 "doctrine/orm": "2.7.*",
                 "ext-json": "*",
+                "friendsofsymfony/rest-bundle": "^3.0",
                 "nelmio/api-doc-bundle": "^4.0",
                 "php": "^7.3",
                 "predis/predis": "^1.1",

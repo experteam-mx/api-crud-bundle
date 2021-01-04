@@ -19,7 +19,6 @@
         "symfony/http-kernel": "5.1.*",
         "symfony/serializer": "5.1.*",
         "symfony/validator": "5.1.*",
-        "friendsofsymfony/rest-bundle": "^3.0",
         "experteam/api-base-bundle": "*@dev",
         "experteam/api-redis-bundle": "*@dev"
     },
