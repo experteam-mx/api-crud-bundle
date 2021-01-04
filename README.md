@@ -1,4 +1,4 @@
-API Redis Bundle
+API CRUD Bundle
 =
 
 CRUD Services for APIs in Symfony 5.1+ <br>
