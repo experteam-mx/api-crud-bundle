@@ -26,15 +26,5 @@
         "psr-4": {
             "Experteam\\ApiCrudBundle\\": "src/"
         }
-    },
-    "repositories": [
-        {
-            "type": "vcs",
-            "url":  "https://github.com/experteam-mx/api-base-bundle.git"
-        },
-        {
-            "type": "vcs",
-            "url":  "https://github.com/experteam-mx/api-redis-bundle.git"
-        }
-    ]
+    }
 }
