@@ -10,18 +10,17 @@ It includes:
 
 ### Install
 
-1. Configure required package on `composer.json`: <br>
+Run de following composer command: <br>
 ```
-"require": {
-    "experteam/api-crud-bundle": "dev-master#[commit-hash]"
-}
+composer require experteam/api-base-bundle
 ```
 
-2. Run the composer command to install or update the package: <br>
-```
-composer update experteam/api-crud-bundle
-```
+### Update
 
+Run de following composer command: <br>
+```
+composer update experteam/api-base-bundle
+```
 
 
 
