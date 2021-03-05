@@ -5,13 +5,13 @@
         http://symfony.com/schema/dic/services/services-1.0.xsd">
     <services>
         <service id="api_crud.paginator" class="Experteam\ApiCrudBundle\Service\Paginator\Paginator" >
-            <argument key="$registry" type="service" id="Doctrine\Persistence\ManagerRegistry"/>
+            <argument key="$entityManager" type="service" id="Doctrine\ORM\EntityManagerInterface"/>
         </service>
         <service id="Experteam\ApiCrudBundle\Service\Paginator\PaginatorInterface" alias="api_crud.paginator" />
 
         <service id="api_crud.violation_util" class="Experteam\ApiCrudBundle\Service\ViolationUtil\ViolationUtil" >
             <argument key="$validator" type="service" id="Symfony\Component\Validator\Validator\ValidatorInterface"/>
-            <argument key="$registry" type="service" id="Doctrine\Persistence\ManagerRegistry"/>
+            <argument key="$entityManager" type="service" id="Doctrine\ORM\EntityManagerInterface"/>
             <argument key="$formFactory" type="service" id="Symfony\Component\Form\FormFactoryInterface"/>
         </service>
         <service id="Experteam\ApiCrudBundle\Service\ViolationUtil\ViolationUtilInterface" alias="api_crud.violation_util" />

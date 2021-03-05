@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Experteam\ApiCrudBundle\Service\ViolationUtil;
 
-use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\Mapping\ClassMetadata;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\Form\FormFactoryInterface;
@@ -22,20 +22,20 @@ class ViolationUtil implements ViolationUtilInterface
     protected $validator;
 
     /**
-     * @var ManagerRegistry
+     * @var EntityManagerInterface
      */
-    protected $managerRegistry;
+    protected $entityManager;
 
     /**
      * @var FormFactoryInterface
      */
     protected $formFactory;
 
-    public function __construct(ValidatorInterface $validator, ManagerRegistry $registry, FormFactoryInterface $formFactory)
+    public function __construct(ValidatorInterface $validator, EntityManagerInterface $entityManager, FormFactoryInterface $formFactory)
     {
-        $this->managerRegistry = $registry;
-        $this->formFactory = $formFactory;
         $this->validator = $validator;
+        $this->entityManager = $entityManager;
+        $this->formFactory = $formFactory;
     }
 
     /**
@@ -93,9 +93,9 @@ class ViolationUtil implements ViolationUtilInterface
      * @param bool $throwException
      * @return array
      */
-    public function validateDataTypes(FormInterface $form, $submittedData, string $entityClass, bool $throwException = true)
+    public function validateDataTypes(FormInterface $form, $submittedData, string $entityClass, bool $throwException = true): array
     {
-        $validationTypes  = $this->getValidationTypes($form, $entityClass);
+        $validationTypes = $this->getValidationTypes($form, $entityClass);
         $constraints = new Assert\Collection($validationTypes);
         $constraints->allowExtraFields = true;
         $constraints->allowMissingFields = true;
@@ -105,6 +105,7 @@ class ViolationUtil implements ViolationUtilInterface
 
         if ($validationErrors->count() > 0) {
             $errors = [];
+
             foreach ($validationErrors as $violation) {
                 $errors[$this->formatPropertyPath($violation->getPropertyPath())] = $violation->getMessage();
             }
@@ -124,11 +125,12 @@ class ViolationUtil implements ViolationUtilInterface
      * @param string $entityClass
      * @return array
      */
-    protected function getValidationTypes(FormInterface $formType, string $entityClass)
+    protected function getValidationTypes(FormInterface $formType, string $entityClass): array
     {
-        $metadata = $this->getClassMetadata($entityClass);
         $validationTypes = [];
-        foreach($formType->all() as $fieldForm) {
+        $metadata = $this->getClassMetadata($entityClass);
+
+        foreach ($formType->all() as $fieldForm) {
             $fieldName = $fieldForm->getConfig()->getName();
 
             if (isset($metadata->fieldMappings[$fieldName])) {
@@ -143,6 +145,7 @@ class ViolationUtil implements ViolationUtilInterface
                     case 4:
                     case 8: // ManyToMany
                         $fieldFormType = $fieldForm->getConfig()->getType()->getInnerType();
+
                         if (get_class($fieldFormType) == CollectionType::class) {
                             $childTypeClass = $fieldForm->getConfig()->getOption('entry_type');
                             $childEntityClass = 'App\\Entity\\' . substr(basename(str_replace('\\', '/', $childTypeClass)), 0, -4);
@@ -152,7 +155,7 @@ class ViolationUtil implements ViolationUtilInterface
                             $_collection = new Assert\Collection($_validationTypes);
                             $_collection->allowMissingFields = true;
                             $_collection->allowExtraFields = true;
-                            $validationTypes[$fieldName] = new Assert\All([ $_collection]);
+                            $validationTypes[$fieldName] = new Assert\All([$_collection]);
                         } else {
                             $validationTypes[$fieldName] = [
                                 new Assert\Type('array'),
@@ -164,6 +167,7 @@ class ViolationUtil implements ViolationUtilInterface
                 }
             }
         }
+
         return $validationTypes;
     }
 
@@ -171,9 +175,10 @@ class ViolationUtil implements ViolationUtilInterface
      * @param string $type
      * @return Assert\Type
      */
-    private function getTypeFromDoctrine(string $type)
+    private function getTypeFromDoctrine(string $type): Assert\Type
     {
         $phpType = $type;
+
         switch ($type) {
             case 'decimal':
                 $phpType = 'numeric';
@@ -183,6 +188,7 @@ class ViolationUtil implements ViolationUtilInterface
                 $phpType = 'integer';
                 break;
         }
+
         return new Assert\Type($phpType);
     }
 
@@ -190,12 +196,14 @@ class ViolationUtil implements ViolationUtilInterface
      * @param string $propertyPath
      * @return string
      */
-    private function formatPropertyPath(string $propertyPath)
+    private function formatPropertyPath(string $propertyPath): string
     {
         $property = '';
+
         foreach (explode('][', substr($propertyPath, 1, -1)) as $prop) {
             $property .= preg_match('/^\d+$/', $prop) ? sprintf('[%s]', $prop) : sprintf('.%s', $prop);
         }
+
         return ltrim($property, '.');
     }
 
@@ -205,6 +213,6 @@ class ViolationUtil implements ViolationUtilInterface
      */
     private function getClassMetadata(string $className): ClassMetadata
     {
-        return $this->managerRegistry->getManager()->getClassMetadata($className);
+        return $this->entityManager->getClassMetadata($className);
     }
 }

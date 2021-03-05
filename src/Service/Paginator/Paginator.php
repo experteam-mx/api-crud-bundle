@@ -3,10 +3,10 @@
 namespace Experteam\ApiCrudBundle\Service\Paginator;
 
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\NonUniqueResultException;
 use Doctrine\ORM\NoResultException;
 use Doctrine\ORM\QueryBuilder;
-use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\Mapping\ClassMetadata;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -17,13 +17,13 @@ class Paginator implements PaginatorInterface
     const LIMIT_MAXIMUM = 1000;
 
     /**
-     * @var ManagerRegistry
+     * @var EntityManagerInterface
      */
-    protected $managerRegistry;
+    protected $entityManager;
 
-    public function __construct(ManagerRegistry $registry)
+    public function __construct(EntityManagerInterface $entityManager)
     {
-        $this->managerRegistry = $registry;
+        $this->entityManager = $entityManager;
     }
 
     /**
@@ -36,8 +36,8 @@ class Paginator implements PaginatorInterface
     public function paginate(string $collectionKey, Request $request, ServiceEntityRepository $repository, array $criteria = []): array
     {
         $queryBuilder = $repository->createQueryBuilder('e');
-
         $result = $this->queryBuilderForResult($queryBuilder, $request, $criteria)->getQuery()->getResult();
+
         try {
             $total = $this->queryBuilderForTotal($queryBuilder, $criteria)->getQuery()->getSingleScalarResult();
         } catch (NoResultException | NonUniqueResultException $e) {
@@ -52,32 +52,37 @@ class Paginator implements PaginatorInterface
      * @param string $entityClass
      * @return array
      */
-    private function offsetLimitOrder(Request $request, string $entityClass)
+    private function offsetLimitOrder(Request $request, string $entityClass): array
     {
         $offset = $request->query->getInt('offset', 0);
         $limit = $request->query->getInt('limit', self::LIMIT_DEFAULT);
         $order = $request->query->get('order', []);
 
-        if (!is_array($order))
+        if (!is_array($order)) {
             throw new BadRequestHttpException('Invalid parameter order, incorrect format.');
-
-        $metadata = $this->getClassMetadata($entityClass);
-        foreach ($order as $field => $direction) {
-            if (!in_array(strtoupper($direction), ['ASC', 'DESC']))
-                throw new BadRequestHttpException(sprintf('Invalid parameter order, value "%s" is not allowed', $direction));
-            if (!$metadata->hasField($field))
-                throw new BadRequestHttpException(sprintf('Invalid parameter order, field "%s" not found or is not allowed', $field));
         }
 
-        if ($limit > self::LIMIT_MAXIMUM)
+        $metadata = $this->getClassMetadata($entityClass);
+
+        foreach ($order as $field => $direction) {
+            if (!in_array(strtoupper($direction), ['ASC', 'DESC'])) {
+                throw new BadRequestHttpException(sprintf('Invalid parameter order, value "%s" is not allowed', $direction));
+            }
+
+            if (!$metadata->hasField($field)) {
+                throw new BadRequestHttpException(sprintf('Invalid parameter order, field "%s" not found or is not allowed', $field));
+            }
+        }
+
+        if ($limit > self::LIMIT_MAXIMUM) {
             $limit = self::LIMIT_MAXIMUM;
-        elseif ($limit <= 0)
+        } elseif ($limit <= 0) {
             $limit = self::LIMIT_DEFAULT;
+        }
 
         $request->query->set('limit', $limit);
         $request->query->set('offset', $offset);
         $request->query->set('order', $order);
-
 
         return [$offset, $limit, $order];
     }
@@ -105,7 +110,7 @@ class Paginator implements PaginatorInterface
                 ->setParameter($field, $value);
         }
 
-        foreach($order as $field => $direction) {
+        foreach ($order as $field => $direction) {
             $queryBuilderResult
                 ->addOrderBy(sprintf('%s.%s', $rootAlias, $field), strtoupper($direction));
         }
@@ -143,6 +148,6 @@ class Paginator implements PaginatorInterface
      */
     protected function getClassMetadata(string $className): ClassMetadata
     {
-        return $this->managerRegistry->getManagerForClass($className)->getClassMetadata($className);
+        return $this->entityManager->getClassMetadata($className);
     }
 }

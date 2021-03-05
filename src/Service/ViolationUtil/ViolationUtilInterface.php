@@ -24,7 +24,7 @@ interface ViolationUtilInterface
      * @param $submittedData
      * @param string $entityClass
      * @param bool $throwException
-     * @return mixed
+     * @return array
      */
-    public function validateDataTypes(FormInterface $form, $submittedData, string $entityClass, bool $throwException = true);
+    public function validateDataTypes(FormInterface $form, $submittedData, string $entityClass, bool $throwException = true): array;
 }
