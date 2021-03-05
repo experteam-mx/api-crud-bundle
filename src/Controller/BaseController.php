@@ -49,7 +49,7 @@ class BaseController extends \Experteam\ApiBaseBundle\Controller\BaseController
      * @param bool $throwException
      * @return array
      */
-    protected function validate(string $type, $data, $submittedData, bool $throwException = true)
+    protected function validate(string $type, $data, $submittedData, bool $throwException = true): array
     {
         $processedErrors = [];
         $form = $this->createForm($type, $data);
@@ -82,7 +82,7 @@ class BaseController extends \Experteam\ApiBaseBundle\Controller\BaseController
      * @param mixed $submittedData
      * @return mixed
      */
-    protected function save(string $type, $data, $submittedData)
+    protected function save(string $type, $data, $submittedData): array
     {
         $this->validate($type, $data, $submittedData);
         $entityManager = $this->getDoctrine()->getManager();
