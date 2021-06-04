@@ -187,6 +187,11 @@ class ViolationUtil implements ViolationUtilInterface
             case 'smallint':
                 $phpType = 'integer';
                 break;
+            case 'date':
+            case 'datetime':
+            case 'time':
+                $phpType = 'string';
+                break;
         }
 
         return new Assert\Type($phpType);
