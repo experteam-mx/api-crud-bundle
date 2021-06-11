@@ -192,6 +192,9 @@ class ViolationUtil implements ViolationUtilInterface
             case 'time':
                 $phpType = 'string';
                 break;
+            case 'json':
+                $phpType = 'array';
+                break;
         }
 
         return new Assert\Type($phpType);
