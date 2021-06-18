@@ -9,6 +9,7 @@ use Experteam\ApiBaseBundle\Service\RequestUtil\RequestUtilInterface;
 use Experteam\ApiCrudBundle\Service\ViolationUtil\ViolationUtilInterface;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Validator\ConstraintViolationList;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class BaseController extends \Experteam\ApiBaseBundle\Controller\BaseController
 {
@@ -34,9 +35,9 @@ class BaseController extends \Experteam\ApiBaseBundle\Controller\BaseController
      * @param RequestUtilInterface $requestUtil
      * @param ViolationUtilInterface $violator
      */
-    public function __construct(PaginatorInterface $paginator, ParamInterface $param, RedisClientInterface $redisClient, RequestUtilInterface $requestUtil, ViolationUtilInterface $violator)
+    public function __construct(PaginatorInterface $paginator, ParamInterface $param, RedisClientInterface $redisClient, HttpClientInterface $httpClient, RequestUtilInterface $requestUtil, ViolationUtilInterface $violator)
     {
-        parent::__construct($param, $requestUtil);
+        parent::__construct($param, $requestUtil, $httpClient);
         $this->paginator = $paginator;
         $this->redisClient = $redisClient;
         $this->violator = $violator;
