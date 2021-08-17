@@ -38,6 +38,17 @@ class MessageController extends BaseController
     {
         /** @var MessageInput $messageInput */
         $messageInput = $this->requestUtil->validate($request->getContent(), MessageInput::class);
+
+        if (count($messageInput->entities) > 0) {
+            $namespace = "App\\Entity\\";
+
+            foreach ($messageInput->entities as &$entity) {
+                if (strpos($entity, $namespace) === false) {
+                    $entity = $namespace . $entity;
+                }
+            }
+        }
+
         $redisTransport->restoreMessages($messageInput->dateTime, $messageInput->entities);
         return [];
     }

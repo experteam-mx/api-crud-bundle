@@ -1,19 +1,29 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<container xmlns="http://symfony.com/schema/dic/services"
-           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-           xsi:schemaLocation="http://symfony.com/schema/dic/services
-        http://symfony.com/schema/dic/services/services-1.0.xsd">
+<container xmlns="http://symfony.com/schema/dic/services" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd">
     <services>
-        <service id="api_crud.paginator" class="Experteam\ApiCrudBundle\Service\Paginator\Paginator" >
+        <service id="api_crud.paginator" class="Experteam\ApiCrudBundle\Service\Paginator\Paginator">
             <argument key="$entityManager" type="service" id="Doctrine\ORM\EntityManagerInterface"/>
         </service>
-        <service id="Experteam\ApiCrudBundle\Service\Paginator\PaginatorInterface" alias="api_crud.paginator" />
+        <service id="Experteam\ApiCrudBundle\Service\Paginator\PaginatorInterface" alias="api_crud.paginator"/>
 
-        <service id="api_crud.violation_util" class="Experteam\ApiCrudBundle\Service\ViolationUtil\ViolationUtil" >
+        <service id="api_crud.violation_util" class="Experteam\ApiCrudBundle\Service\ViolationUtil\ViolationUtil">
             <argument key="$validator" type="service" id="Symfony\Component\Validator\Validator\ValidatorInterface"/>
             <argument key="$entityManager" type="service" id="Doctrine\ORM\EntityManagerInterface"/>
             <argument key="$formFactory" type="service" id="Symfony\Component\Form\FormFactoryInterface"/>
         </service>
-        <service id="Experteam\ApiCrudBundle\Service\ViolationUtil\ViolationUtilInterface" alias="api_crud.violation_util" />
+        <service id="Experteam\ApiCrudBundle\Service\ViolationUtil\ViolationUtilInterface" alias="api_crud.violation_util"/>
+
+        <service id="Experteam\ApiCrudBundle\Controller\MessageController">
+            <argument key="$paginator" type="service" id="Experteam\ApiCrudBundle\Service\Paginator\PaginatorInterface"/>
+            <argument key="$param" type="service" id="Experteam\ApiBaseBundle\Service\Param\ParamInterface"/>
+            <argument key="$redisClient" type="service" id="Experteam\ApiRedisBundle\Service\RedisClient\RedisClientInterface"/>
+            <argument key="$httpClient" type="service" id="Symfony\Contracts\HttpClient\HttpClientInterface"/>
+            <argument key="$requestUtil" type="service" id="Experteam\ApiBaseBundle\Service\RequestUtil\RequestUtilInterface"/>
+            <argument key="$violator" type="service" id="Experteam\ApiCrudBundle\Service\ViolationUtil\ViolationUtilInterface"/>
+            <tag name="controller.service_arguments"/>
+            <call method="setContainer">
+                <argument type="service" id="service_container"/>
+            </call>
+        </service>
     </services>
 </container>
