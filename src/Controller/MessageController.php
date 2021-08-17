@@ -15,16 +15,14 @@ use Symfony\Component\HttpFoundation\Request;
 
 /**
  * @OA\Tag(name="Message")
- * @Rest\Route(path="/messages")
  */
-class MessageBaseController extends BaseController
+class MessageController extends BaseController
 {
     /**
      * Creates a Message resource.
      *
      * @Security(name="Bearer")
      *
-     * @Rest\Post()
      * @OA\RequestBody(@Model(type=MessageInput::class), description="The new Message resource.")
      *
      * @Rest\View()
@@ -40,7 +38,7 @@ class MessageBaseController extends BaseController
     {
         /** @var MessageInput $messageInput */
         $messageInput = $this->requestUtil->validate($request->getContent(), MessageInput::class);
-        $redisTransport->restoreMessages($messageInput->dateTime);
+        $redisTransport->restoreMessages($messageInput->dateTime, $messageInput->entities);
         return [];
     }
 }

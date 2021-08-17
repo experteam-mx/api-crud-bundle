@@ -19,5 +19,5 @@ class MessageInput
      *
      * @OA\Property(type="array", @OA\Items(type="string"), description="Entities.")
      */
-    public $entities;
+    public $entities = [];
 }
