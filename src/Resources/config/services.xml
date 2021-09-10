@@ -25,5 +25,18 @@
                 <argument type="service" id="service_container"/>
             </call>
         </service>
+
+        <service id="Experteam\ApiCrudBundle\Controller\RedisDataController">
+            <argument key="$paginator" type="service" id="Experteam\ApiCrudBundle\Service\Paginator\PaginatorInterface"/>
+            <argument key="$param" type="service" id="Experteam\ApiBaseBundle\Service\Param\ParamInterface"/>
+            <argument key="$redisClient" type="service" id="Experteam\ApiRedisBundle\Service\RedisClient\RedisClientInterface"/>
+            <argument key="$httpClient" type="service" id="Symfony\Contracts\HttpClient\HttpClientInterface"/>
+            <argument key="$requestUtil" type="service" id="Experteam\ApiBaseBundle\Service\RequestUtil\RequestUtilInterface"/>
+            <argument key="$violator" type="service" id="Experteam\ApiCrudBundle\Service\ViolationUtil\ViolationUtilInterface"/>
+            <tag name="controller.service_arguments"/>
+            <call method="setContainer">
+                <argument type="service" id="service_container"/>
+            </call>
+        </service>
     </services>
 </container>
