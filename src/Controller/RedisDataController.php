@@ -13,7 +13,6 @@ use OpenApi\Annotations as OA;
 
 /**
  * @OA\Tag(name="Redis data")
- * @Rest\Route(path="/redis-data")
  */
 class RedisDataController extends BaseController
 {
