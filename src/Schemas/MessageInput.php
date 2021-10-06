@@ -10,9 +10,15 @@ class MessageInput
     /**
      * @Assert\NotBlank()
      * @Assert\DateTime()
-     * @OA\Property(type="string", maxLength=19, description="Date and time.", example="Y-m-d H:i:s")
+     * @OA\Property(type="string", maxLength=19, description="Date From.", example="Y-m-d H:i:s")
      */
-    public $dateTime;
+    public $dateTimeFrom;
+
+    /**
+     * @Assert\DateTime()
+     * @OA\Property(type="string", maxLength=19, description="Date To.", example="Y-m-d H:i:s")
+     */
+    public $dateTimeTo;
 
     /**
      * @var string[]
@@ -20,4 +26,11 @@ class MessageInput
      * @OA\Property(type="array", @OA\Items(type="string"), description="Entities.")
      */
     public $entities = [];
+
+    /**
+     * @var int[]
+     *
+     * @OA\Property(type="array", @OA\Items(type="number"), description="Entity Ids")
+     */
+    public $entityIds = [];
 }

@@ -49,7 +49,7 @@ class MessageController extends BaseController
             }
         }
 
-        $redisTransport->restoreMessages($messageInput->dateTime, $messageInput->entities);
+        $redisTransport->restoreMessages($messageInput->dateTimeFrom, $messageInput->dateTimeTo, $messageInput->entities, $messageInput->entityIds);
         return [];
     }
 }
