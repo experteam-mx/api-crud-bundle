@@ -190,6 +190,7 @@ class ViolationUtil implements ViolationUtilInterface
             case 'date':
             case 'datetime':
             case 'time':
+            case 'text':
                 $phpType = 'string';
                 break;
             case 'json':
