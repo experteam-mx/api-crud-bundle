@@ -139,8 +139,19 @@ class ViolationUtil implements ViolationUtilInterface
                 switch ($metadata->associationMappings[$fieldName]['type']) {
                     case 1: // OneToOne
                     case 2: // ManyToOne
-                        $fieldName = property_exists($entityClass, $fieldName . 'Id') ? $fieldName . 'Id' : $fieldName;
-                        $validationTypes[$fieldName] = new Assert\Type('integer');
+                        if (property_exists($entityClass, $fieldName . 'Id'))
+                            $validationTypes[$fieldName . 'Id'] = new Assert\Type('integer');
+                        else {
+                            $childTypeClass = get_class($fieldForm->getConfig()->getType()->getInnerType());
+                            $childEntityClass = 'App\\Entity\\' . substr(basename(str_replace('\\', '/', $childTypeClass)), 0, -4);
+                            $childForm = $this->formFactory->create($childTypeClass);
+
+                            $_validationTypes = $this->getValidationTypes($childForm, $childEntityClass);
+                            $_collection = new Assert\Collection($_validationTypes);
+                            $_collection->allowMissingFields = true;
+                            $_collection->allowExtraFields = true;
+                            $validationTypes[$fieldName] = $_collection;
+                        }
                         break;
                     case 4:
                     case 8: // ManyToMany
