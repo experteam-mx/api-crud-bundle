@@ -134,7 +134,10 @@ class ViolationUtil implements ViolationUtilInterface
             $fieldName = $fieldForm->getConfig()->getName();
 
             if (isset($metadata->fieldMappings[$fieldName])) {
-                $validationTypes[$fieldName] = $this->getTypeFromDoctrine($metadata->fieldMappings[$fieldName]['type']);
+                $type = $this->getTypeFromDoctrine($metadata->fieldMappings[$fieldName]['type']);
+                if (!is_null($type))
+                    $validationTypes[$fieldName] = $type;
+
             } elseif (isset($metadata->associationMappings[$fieldName])) {
                 switch ($metadata->associationMappings[$fieldName]['type']) {
                     case 1: // OneToOne
@@ -184,32 +187,31 @@ class ViolationUtil implements ViolationUtilInterface
 
     /**
      * @param string $type
-     * @return Assert\Type
+     * @return Assert\Type|null
      */
-    private function getTypeFromDoctrine(string $type): Assert\Type
+    private function getTypeFromDoctrine(string $type): ?Assert\Type
     {
-        $phpType = $type;
-
         switch ($type) {
             case 'decimal':
-                $phpType = 'numeric';
-                break;
+            case 'float':
+                return new Assert\Type('numeric');
             case 'bigint':
+            case 'integer':
             case 'smallint':
-                $phpType = 'integer';
-                break;
+                return new Assert\Type('integer');
             case 'date':
             case 'datetime':
             case 'time':
             case 'text':
-                $phpType = 'string';
-                break;
+            case 'string':
+                return new Assert\Type('string');
             case 'json':
-                $phpType = 'array';
-                break;
+                return new Assert\Type('array');
+            case 'boolean':
+                return new Assert\Type('bool');
+            default:
+                return null;
         }
-
-        return new Assert\Type($phpType);
     }
 
     /**
