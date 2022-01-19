@@ -39,7 +39,10 @@ class Paginator implements PaginatorInterface
     public function paginate(string $collectionKey, Request $request, ServiceEntityRepository $repository, array $criteria = []): array
     {
         $queryBuilder = $repository->createQueryBuilder('e');
-        $result = $this->queryBuilderForResult($queryBuilder, $request, $criteria)->getQuery()->getResult();
+        $result = $this->queryForTranslatable(
+            $this->queryBuilderForResult($queryBuilder, $request, $criteria),
+            $request
+        )->getResult();
 
         try {
             $total = $this->queryBuilderForTotal($queryBuilder, $criteria)->getQuery()->getSingleScalarResult();
@@ -118,14 +121,26 @@ class Paginator implements PaginatorInterface
                 ->addOrderBy(sprintf('%s.%s', $rootAlias, $field), strtoupper($direction));
         }
 
+        return $queryBuilderResult;
+    }
+
+    /**
+     * @param QueryBuilder $queryBuilder
+     * @param Request $request
+     * @return Query
+     */
+    public function queryForTranslatable(QueryBuilder $queryBuilder, Request $request): Query
+    {
+        $entityClass = $queryBuilder->getDQLPart('from')[0]->getFrom();
+        $query = $queryBuilder->getQuery();
+
         if (in_array(Translatable::class, array_values(class_implements($entityClass)))) {
-            $queryBuilderResult->getQuery()
-                ->setHint(Query::HINT_CUSTOM_OUTPUT_WALKER, 'Gedmo\\Translatable\\Query\\TreeWalker\\TranslationWalker')
-                ->setHint(TranslatableListener::HINT_TRANSLATABLE_LOCALE, $request->query->get('locale'))
-                ->setHint(TranslatableListener::HINT_FALLBACK, 1);
+            $query->setHint(Query::HINT_CUSTOM_OUTPUT_WALKER, 'Gedmo\\Translatable\\Query\\TreeWalker\\TranslationWalker');
+            $query->setHint(TranslatableListener::HINT_TRANSLATABLE_LOCALE, $request->query->get('locale'));
+            $query->setHint(TranslatableListener::HINT_FALLBACK, 1);
         }
 
-        return $queryBuilderResult;
+        return $query;
     }
 
     /**
