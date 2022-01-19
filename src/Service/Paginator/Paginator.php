@@ -6,8 +6,11 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\NonUniqueResultException;
 use Doctrine\ORM\NoResultException;
+use Doctrine\ORM\Query;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\Mapping\ClassMetadata;
+use Gedmo\Translatable\Translatable;
+use Gedmo\Translatable\TranslatableListener;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
@@ -113,6 +116,13 @@ class Paginator implements PaginatorInterface
         foreach ($order as $field => $direction) {
             $queryBuilderResult
                 ->addOrderBy(sprintf('%s.%s', $rootAlias, $field), strtoupper($direction));
+        }
+
+        if (in_array(Translatable::class, array_values(class_implements($entityClass)))) {
+            $queryBuilderResult->getQuery()
+                ->setHint(Query::HINT_CUSTOM_OUTPUT_WALKER, 'Gedmo\\Translatable\\Query\\TreeWalker\\TranslationWalker')
+                ->setHint(TranslatableListener::HINT_TRANSLATABLE_LOCALE, $request->query->get('locale'))
+                ->setHint(TranslatableListener::HINT_FALLBACK, 1);
         }
 
         return $queryBuilderResult;
