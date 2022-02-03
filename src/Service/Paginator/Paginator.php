@@ -60,24 +60,18 @@ class Paginator implements PaginatorInterface
      */
     private function offsetLimitOrder(Request $request, string $entityClass): array
     {
-        $offset = $request->query->getInt('offset', 0);
+        $offset = $request->query->getInt('offset');
         $limit = $request->query->getInt('limit', self::LIMIT_DEFAULT);
         $order = $request->query->get('order', []);
 
-        if (!is_array($order)) {
+        if (!is_array($order))
             throw new BadRequestHttpException('Invalid parameter order, incorrect format.');
-        }
-
-        $metadata = $this->getClassMetadata($entityClass);
 
         foreach ($order as $field => $direction) {
-            if (!in_array(strtoupper($direction), ['ASC', 'DESC'])) {
+            if (!in_array(strtoupper($direction), ['ASC', 'DESC']))
                 throw new BadRequestHttpException(sprintf('Invalid parameter order, value "%s" is not allowed', $direction));
-            }
 
-            if (!$metadata->hasField($field)) {
-                throw new BadRequestHttpException(sprintf('Invalid parameter order, field "%s" not found or is not allowed', $field));
-            }
+            $this->validateField($field, $entityClass);
         }
 
         if ($limit > self::LIMIT_MAXIMUM) {
@@ -116,10 +110,8 @@ class Paginator implements PaginatorInterface
                 ->setParameter($field, $value);
         }
 
-        foreach ($order as $field => $direction) {
-            $queryBuilderResult
-                ->addOrderBy(sprintf('%s.%s', $rootAlias, $field), strtoupper($direction));
-        }
+        foreach ($order as $field => $direction)
+            $this->addOrderBy($queryBuilderResult, $field, $direction, $rootAlias);
 
         return $queryBuilderResult;
     }
@@ -174,5 +166,115 @@ class Paginator implements PaginatorInterface
     protected function getClassMetadata(string $className): ClassMetadata
     {
         return $this->entityManager->getClassMetadata($className);
+    }
+
+    /**
+     * @param string $field
+     * @param string $entityClass
+     */
+    protected function validateField(string $field, string $entityClass)
+    {
+        $metadata = $this->getClassMetadata($entityClass);
+        $_field = $field;
+
+        if ($this->isFieldNested($field)) {
+            [$associations, $_field] = $this->splitFieldParts($field);
+
+            foreach ($associations as $association) {
+                if (!$metadata->hasAssociation($association))
+                    throw new BadRequestHttpException(sprintf('Invalid field, "%s" not found', $field));
+
+                $metadata = $this->getClassMetadata($metadata->getAssociationTargetClass($association));
+            }
+        }
+
+        if (!$metadata->hasField($_field))
+            throw new BadRequestHttpException(sprintf('Invalid field, "%s" not found', $field));
+    }
+
+    /**
+     * @param string $field
+     * @return array [associations, field]
+     */
+    protected function splitFieldParts(string $field)
+    {
+        $parts = explode('.', $field);
+        $field = array_pop($parts);
+        return [$parts, $field];
+    }
+
+    /**
+     * @param string $field
+     * @return bool
+     */
+    protected function isFieldNested(string $field): bool
+    {
+        return (strpos($field, '.') !== false);
+    }
+
+    /**
+     * @param QueryBuilder $queryBuilder
+     * @param array $associations
+     * @param string $rootAlias
+     * @param bool $leftJoin
+     * @return string
+     */
+    protected function addJoinForAssociations(QueryBuilder $queryBuilder, array $associations, string $rootAlias, bool $leftJoin = false)
+    {
+        $parentAlias = $alias = $rootAlias;
+        $incrementAlias = 0;
+
+        foreach ($associations as $association) {
+            $alias = sprintf('%s_a%d', $association, $incrementAlias);
+            $join = "$parentAlias.$association";
+
+            if (!$this->joinExists($queryBuilder, $alias, $association, $rootAlias)) {
+                if ($leftJoin)
+                    $queryBuilder->leftJoin($join, $alias);
+                else
+                    $queryBuilder->innerJoin($join, $alias);
+            }
+
+            $parentAlias = $alias;
+        }
+
+        return $alias;
+    }
+
+    /**
+     * @param QueryBuilder $queryBuilder
+     * @param string $alias
+     * @param string $association
+     * @param string $rootAlias
+     * @return bool
+     */
+    protected function joinExists(QueryBuilder $queryBuilder, string $alias, string $association, string $rootAlias)
+    {
+        $dqlParts = $queryBuilder->getDQLPart('join');
+
+        foreach ($dqlParts[$rootAlias] ?? [] as $join)
+            if (sprintf('%s.%s', $alias, $association) === $join->getJoin())
+                return true;
+
+        return false;
+    }
+
+    /**
+     * @param QueryBuilder $queryBuilder
+     * @param string $field
+     * @param string $direction
+     * @param string $rootAlias
+     */
+    protected function addOrderBy(QueryBuilder $queryBuilder, string $field, string $direction, string $rootAlias)
+    {
+        $alias = $rootAlias;
+
+        if ($this->isFieldNested($field)) {
+            [$associations, $field] = $this->splitFieldParts($field);
+            $alias = $this->addJoinForAssociations($queryBuilder, $associations, $rootAlias, true);
+        }
+
+        $queryBuilder
+            ->addOrderBy(sprintf('%s.%s', $alias, $field), strtoupper($direction));
     }
 }
