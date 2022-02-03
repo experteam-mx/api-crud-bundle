@@ -24,6 +24,11 @@ class Paginator implements PaginatorInterface
      */
     protected $entityManager;
 
+    /**
+     * @var int
+     */
+    protected $incrementAlias = 0;
+
     public function __construct(EntityManagerInterface $entityManager)
     {
         $this->entityManager = $entityManager;
@@ -222,10 +227,9 @@ class Paginator implements PaginatorInterface
     protected function addJoinForAssociations(QueryBuilder $queryBuilder, array $associations, string $rootAlias, bool $leftJoin = false)
     {
         $parentAlias = $alias = $rootAlias;
-        $incrementAlias = 0;
 
         foreach ($associations as $association) {
-            $alias = sprintf('%s_a%d', $association, $incrementAlias);
+            $alias = sprintf('%s_a%d', $association, $this->incrementAlias);
             $join = "$parentAlias.$association";
 
             if (!$this->joinExists($queryBuilder, $alias, $association, $rootAlias)) {
@@ -236,6 +240,7 @@ class Paginator implements PaginatorInterface
             }
 
             $parentAlias = $alias;
+            $this->incrementAlias++;
         }
 
         return $alias;
