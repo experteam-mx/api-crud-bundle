@@ -12,6 +12,7 @@ use Doctrine\Persistence\Mapping\ClassMetadata;
 use Gedmo\Translatable\Translatable;
 use Gedmo\Translatable\TranslatableListener;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 class Paginator implements PaginatorInterface
@@ -19,19 +20,28 @@ class Paginator implements PaginatorInterface
     const LIMIT_DEFAULT = 50;
     const LIMIT_MAXIMUM = 1000;
 
+    const AND = 'AND';
+    const OR = 'OR';
+
     /**
      * @var EntityManagerInterface
      */
     protected $entityManager;
 
     /**
+     * @var Request
+     */
+    protected $request;
+
+    /**
      * @var int
      */
     protected $incrementAlias = 0;
 
-    public function __construct(EntityManagerInterface $entityManager)
+    public function __construct(EntityManagerInterface $entityManager, RequestStack $requestStack)
     {
         $this->entityManager = $entityManager;
+        $this->request = $requestStack->getCurrentRequest();
     }
 
     /**
@@ -109,14 +119,9 @@ class Paginator implements PaginatorInterface
             ->setMaxResults($limit)
             ->setFirstResult($offset);
 
-        foreach ($criteria as $field => $value) {
-            $queryBuilderResult
-                ->andWhere(sprintf('%s.%s = :%s', $rootAlias, $field, $field))
-                ->setParameter($field, $value);
-        }
+        $this->addCriteria($queryBuilderResult, $criteria, $rootAlias);
 
-        foreach ($order as $field => $direction)
-            $this->addOrderBy($queryBuilderResult, $field, $direction, $rootAlias);
+        $this->addOrder($queryBuilderResult, $order, $rootAlias);
 
         return $queryBuilderResult;
     }
@@ -155,11 +160,7 @@ class Paginator implements PaginatorInterface
         $queryBuilderCount->resetDQLPart('select');
         $queryBuilderCount->select(sprintf('count(%s.%s)', $rootAlias, $metadata->getSingleIdentifierFieldName()));
 
-        foreach ($criteria as $field => $value) {
-            $queryBuilderCount
-                ->andWhere(sprintf('%s.%s = :%s', $rootAlias, $field, $field))
-                ->setParameter($field, $value);
-        }
+        $this->addCriteria($queryBuilderCount, $criteria, $rootAlias);
 
         return $queryBuilderCount;
     }
@@ -267,19 +268,176 @@ class Paginator implements PaginatorInterface
     /**
      * @param QueryBuilder $queryBuilder
      * @param string $field
-     * @param string $direction
+     * @param string $rootAlias
+     * @param bool $leftJoin
+     * @return array [alias, field]
+     */
+    protected function getNestedAliasField(QueryBuilder $queryBuilder, string $field, string $rootAlias, bool $leftJoin = false): array
+    {
+        [$associations, $field] = $this->splitFieldParts($field);
+
+        $alias = $this->addJoinForAssociations($queryBuilder, $associations, $rootAlias, $leftJoin);
+
+        return [$alias, $field];
+    }
+
+    /**
+     * @param QueryBuilder $queryBuilder
+     * @param array $order
      * @param string $rootAlias
      */
-    protected function addOrderBy(QueryBuilder $queryBuilder, string $field, string $direction, string $rootAlias)
+    protected function addOrder(QueryBuilder $queryBuilder, array $order, string $rootAlias)
     {
-        $alias = $rootAlias;
+        foreach ($order as $field => $direction) {
+            [$alias, $_field] = $this->isFieldNested($field)
+                ? $this->getNestedAliasField($queryBuilder, $field, $rootAlias, true)
+                : [$rootAlias, $field];
 
-        if ($this->isFieldNested($field)) {
-            [$associations, $field] = $this->splitFieldParts($field);
-            $alias = $this->addJoinForAssociations($queryBuilder, $associations, $rootAlias, true);
+            $queryBuilder
+                ->addOrderBy("$alias.$_field", strtoupper($direction));
+        }
+    }
+
+    /**
+     * @param QueryBuilder $queryBuilder
+     * @param array $criteria
+     * @param string $rootAlias
+     */
+    protected function addCriteria(QueryBuilder $queryBuilder, array $criteria, string $rootAlias)
+    {
+        $criteria = $this->sortCriteriaByRequest($criteria);
+        $dql = '';
+        $parameters = [];
+        $whereGrouped = [];
+
+        foreach ($criteria as $field => $value) {
+            [$alias, $_field] = $this->isFieldNested($field)
+                ? $this->getNestedAliasField($queryBuilder, $field, $rootAlias)
+                : [$rootAlias, $field];
+
+            if (is_array($value)) {
+                $filter = array_key_first($value);
+                $v = $value[$filter];
+
+                if (is_numeric($filter))
+                    $whereGrouped[$filter][] = [$alias, $_field, $v];
+                elseif (!is_array($v)) {
+                    [$operator, $expression, $parameter, $value] = $this->getFilterWhere($filter, $alias, $_field, $v);
+                    $this->updateDQL($dql, $operator, $expression);
+                    $parameters[$parameter] = $value;
+                } else
+                    throw new BadRequestHttpException(sprintf('Incorrect format for "%s" parameter', $field));
+            } else {
+                $parameter = "{$alias}_$_field";
+                $this->updateDQL($dql, self::AND, "$alias.$_field = :$parameter");
+                $parameters[$parameter] = $value;
+            }
         }
 
-        $queryBuilder
-            ->addOrderBy(sprintf('%s.%s', $alias, $field), strtoupper($direction));
+        if (!empty($whereGrouped))
+            foreach ($whereGrouped as $group) {
+                $_dql = '';
+
+                foreach ($group as [$alias, $_field, $value]) {
+                    if (is_array($value)) {
+                        $filter = array_key_first($value);
+                        $v = $value[$filter];
+                    } else {
+                        $filter = 'eq';
+                        $v = $value;
+                    }
+
+                    [$operator, $expression, $parameter, $value] = $this->getFilterWhere($filter, $alias, $_field, $v);
+                    $this->updateDQL($_dql, $operator, $expression);
+                    $parameters[$parameter] = $value;
+                }
+
+                $this->updateDQL($dql, self::AND, empty($dql) ? $_dql : "($_dql)");
+            }
+
+        if (!empty($dql))
+            $queryBuilder->andWhere($dql)
+                ->setParameters($parameters);
+    }
+
+    /**
+     * @param array $criteria
+     * @return array
+     */
+    protected function sortCriteriaByRequest(array $criteria)
+    {
+        $ordered = [];
+
+        foreach(array_keys($this->request->query->all()) as $key) {
+            $_key = str_replace('@', '.', $key);
+
+            if (array_key_exists($_key, $criteria))
+                $ordered[$_key] = $criteria[$_key];
+        }
+
+        return $ordered;
+    }
+
+    /**
+     * @param string $dql
+     * @param string $operator
+     * @param string $expression
+     */
+    protected function updateDQL(string &$dql, string $operator, string $expression)
+    {
+        $dql .= empty($dql) ? "$expression" : " $operator $expression";
+    }
+
+    /**
+     * @param string $filter
+     * @param string $alias
+     * @param string $field
+     * @param string $value
+     * @return string[]
+     */
+    protected function getFilterWhere(string $filter, string $alias, string $field, string $value): array
+    {
+        $parameter = "{$alias}_$field";
+
+        switch ($filter) {
+            case 'lk':
+                return [self::AND, "$alias.$field LIKE :$parameter", $parameter, "%$value%"];
+
+            case 'olk':
+                return [self::OR, "$alias.$field LIKE :$parameter", $parameter, "%$value%"];
+
+            case 'gt':
+                return [self::AND, "$alias.$field > :$parameter", $parameter, $value];
+
+            case 'ogt':
+                return [self::OR, "$alias.$field > :$parameter", $parameter, $value];
+
+            case 'gte':
+                return [self::AND, "$alias.$field >= :$parameter", $parameter, $value];
+
+            case 'ogte':
+                return [self::OR, "$alias.$field >= :$parameter", $parameter, $value];
+
+            case 'lt':
+                return [self::AND, "$alias.$field < :$parameter", $parameter, $value];
+
+            case 'olt':
+                return [self::OR, "$alias.$field < :$parameter", $parameter, $value];
+
+            case 'lte':
+                return [self::AND, "$alias.$field <= :$parameter", $parameter, $value];
+
+            case 'olte':
+                return [self::OR, "$alias.$field <= :$parameter", $parameter, $value];
+
+            case 'eq':
+                return [self::AND, "$alias.$field = :$parameter", $parameter, $value];
+
+            case 'oeq':
+                return [self::OR, "$alias.$field = :$parameter", $parameter, $value];
+
+            default:
+                throw new BadRequestHttpException(sprintf('Invalid filter "%s"', $filter));
+        }
     }
 }

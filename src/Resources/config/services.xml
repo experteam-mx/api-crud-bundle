@@ -3,6 +3,7 @@
     <services>
         <service id="api_crud.paginator" class="Experteam\ApiCrudBundle\Service\Paginator\Paginator">
             <argument key="$entityManager" type="service" id="Doctrine\ORM\EntityManagerInterface"/>
+            <argument key="$requestStack" type="service" id="Symfony\Component\HttpFoundation\RequestStack"/>
         </service>
         <service id="Experteam\ApiCrudBundle\Service\Paginator\PaginatorInterface" alias="api_crud.paginator"/>
 
