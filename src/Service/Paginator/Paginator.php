@@ -20,6 +20,7 @@ class Paginator implements PaginatorInterface
     const LIMIT_DEFAULT = 50;
     const LIMIT_MAXIMUM = 1000;
 
+    const NESTED_SEPARATOR = '@';
     const AND = 'AND';
     const OR = 'OR';
 
@@ -204,7 +205,7 @@ class Paginator implements PaginatorInterface
      */
     protected function splitFieldParts(string $field)
     {
-        $parts = explode('.', $field);
+        $parts = explode(self::NESTED_SEPARATOR, $field);
         $field = array_pop($parts);
         return [$parts, $field];
     }
@@ -215,7 +216,7 @@ class Paginator implements PaginatorInterface
      */
     protected function isFieldNested(string $field): bool
     {
-        return (strpos($field, '.') !== false);
+        return (strpos($field, self::NESTED_SEPARATOR) !== false);
     }
 
     /**
@@ -369,10 +370,8 @@ class Paginator implements PaginatorInterface
         $ordered = [];
 
         foreach(array_keys($this->request->query->all()) as $key) {
-            $_key = str_replace('@', '.', $key);
-
-            if (array_key_exists($_key, $criteria))
-                $ordered[$_key] = $criteria[$_key];
+            if (array_key_exists($key, $criteria))
+                $ordered[$key] = $criteria[$key];
         }
 
         return $ordered;
