@@ -356,9 +356,12 @@ class Paginator implements PaginatorInterface
                 $this->updateDQL($dql, self::AND, empty($dql) ? $_dql : "($_dql)");
             }
 
-        if (!empty($dql))
-            $queryBuilder->andWhere($dql)
-                ->setParameters($parameters);
+        if (!empty($dql)) {
+            $queryBuilder->andWhere($dql);
+
+            foreach ($parameters as $key => $value)
+                $queryBuilder->setParameter($key, $value);
+        }
     }
 
     /**
