@@ -313,7 +313,7 @@ class Paginator implements PaginatorInterface
 
         foreach ($criteria as $field => $value) {
             [$alias, $_field] = $this->isFieldNested($field)
-                ? $this->getNestedAliasField($queryBuilder, $field, $rootAlias)
+                ? $this->getNestedAliasField($queryBuilder, $field, $rootAlias, true)
                 : [$rootAlias, $field];
 
             if (is_array($value)) {
