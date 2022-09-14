@@ -39,5 +39,9 @@
                 <argument type="service" id="service_container"/>
             </call>
         </service>
+
+        <service id="api_crud.model_logger" class="Experteam\ApiCrudBundle\Service\ModelLogger\ModelLogger">
+            <argument key="$elkLogger" type="service" id="Experteam\ApiBaseBundle\Service\ELKLogger\ELKLoggerInterface"/>
+        </service>
     </services>
 </container>
