@@ -44,5 +44,10 @@
             <argument key="$elkLogger" type="service" id="Experteam\ApiBaseBundle\Service\ELKLogger\ELKLoggerInterface"/>
         </service>
         <service id="Experteam\ApiCrudBundle\Service\ModelLogger\ModelLoggerInterface" alias="api_crud.model_logger"/>
+
+        <service id="Experteam\ApiCrudBundle\MessageHandler\EntityChangeMessageHandler">
+            <argument key="$modelLogger" type="service" id="Experteam\ApiCrudBundle\Service\ModelLogger\ModelLoggerInterface"/>
+            <tag name="api_crud.entity_log_message" handles="Experteam\ApiCrudBundle\Message\EntityChangeMessage"/>
+        </service>
     </services>
 </container>
