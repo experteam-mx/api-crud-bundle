@@ -40,14 +40,9 @@
             </call>
         </service>
 
-        <service
-                id="Experteam\ApiCrudBundle\Service\ModelLogger\ModelLoggerInterface"
-                alias="api_crud.model_logger"
-        >
-            <argument key="$elkLogger"
-                      type="service"
-                      id="Experteam\ApiBaseBundle\Service\ELKLogger\ELKLoggerInterface"
-            />
+        <service id="api_crud.model_logger" class="Experteam\ApiCrudBundle\Service\ModelLogger\ModelLogger" public="true">
+            <argument key="$elkLogger" type="service" id="Experteam\ApiBaseBundle\Service\ELKLogger\ELKLoggerInterface"/>
         </service>
+        <service id="Experteam\ApiCrudBundle\Service\ModelLogger\ModelLoggerInterface" alias="api_crud.model_logger"/>
     </services>
 </container>
