@@ -28,7 +28,7 @@ class ModelLogger implements ModelLoggerInterface
         $this->messageBus = $messageBus;
     }
 
-    public function logEntityChanges(array $current, array $changes, string $className): void
+    public function logChanges(array $current, array $changes, string $className): void
     {
         $changedProps = array_keys($changes);
 
@@ -52,7 +52,7 @@ class ModelLogger implements ModelLoggerInterface
             ]);
     }
 
-    public function dispatchEntityChanges(OnFlushEventArgs $eventArgs): void
+    public function dispatchChanges(OnFlushEventArgs $eventArgs): void
     {
         $uow = $eventArgs->getEntityManager()
             ->getUnitOfWork();

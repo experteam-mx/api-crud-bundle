@@ -12,11 +12,11 @@ interface ModelLoggerInterface
      * @param string $className
      * @return void
      */
-    public function logEntityChanges(array $current, array $changes, string $className): void;
+    public function logChanges(array $current, array $changes, string $className): void;
 
     /**
      * @param OnFlushEventArgs $eventArgs
      * @return void
      */
-    public function dispatchEntityChanges(OnFlushEventArgs $eventArgs): void;
+    public function dispatchChanges(OnFlushEventArgs $eventArgs): void;
 }
