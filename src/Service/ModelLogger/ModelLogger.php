@@ -35,7 +35,7 @@ class ModelLogger implements ModelLoggerInterface
         }
 
         $this->elkLogger
-            ->warningLog("Model [$className] changed!", [
+            ->noticeLog("Model [$className] changed!", [
                 'model' => $className,
                 'changes' => $changes,
                 'new' => $current,
