@@ -19,7 +19,7 @@
         "symfony/http-kernel": "5.2.*|5.3.*|5.4.*",
         "symfony/serializer": "5.2.*|5.3.*|5.4.*",
         "symfony/validator": "5.2.*|5.3.*|5.4.*",
-        "experteam/api-base-bundle": "^1.0",
+        "experteam/api-base-bundle": "^1.2.0",
         "experteam/api-redis-bundle": "^1.0"
     },
     "autoload": {
