@@ -2,10 +2,11 @@
 
 namespace Experteam\ApiCrudBundle\Service\ModelLogger;
 
+use Doctrine\ORM\Event\OnFlushEventArgs;
 use Experteam\ApiBaseBundle\Service\ELKLogger\ELKLogger;
-use Symfony\Component\PropertyInfo\Extractor\PhpDocExtractor;
-use Symfony\Component\PropertyInfo\Extractor\ReflectionExtractor;
-use Symfony\Component\PropertyInfo\PropertyInfoExtractor;
+use Experteam\ApiCrudBundle\Message\EntityChangeMessage;
+use ReflectionClass;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 class ModelLogger implements ModelLoggerInterface
 {
@@ -14,12 +15,20 @@ class ModelLogger implements ModelLoggerInterface
      */
     protected $elkLogger;
 
-    public function __construct(ELKLogger $elkLogger)
-    {
+    /**
+     * @var MessageBusInterface
+     */
+    private $messageBus;
+
+    public function __construct(
+        ELKLogger $elkLogger,
+        MessageBusInterface $messageBus
+    ) {
         $this->elkLogger = $elkLogger;
+        $this->messageBus = $messageBus;
     }
 
-    public function entityChanges(array $current, array $changes, string $className): void
+    public function logEntityChanges(array $current, array $changes, string $className): void
     {
         $changedProps = array_keys($changes);
 
@@ -41,5 +50,29 @@ class ModelLogger implements ModelLoggerInterface
                 'new' => $current,
                 'old' => $old,
             ]);
+    }
+
+    public function dispatchEntityChanges(OnFlushEventArgs $eventArgs): void
+    {
+        $uow = $eventArgs->getEntityManager()
+            ->getUnitOfWork();
+
+        foreach ($uow->getScheduledEntityUpdates() as $entity) {
+            $changeSet = $uow->getEntityChangeSet($entity);
+
+            if (empty($changeSet)) {
+                continue;
+            }
+
+            $this->messageBus
+                ->dispatch(
+                    new EntityChangeMessage([
+                        'changes' => $changeSet,
+                        'current' => $entity,
+                        'class_name' => (new ReflectionClass($entity))
+                            ->getShortName()
+                    ])
+                );
+        }
     }
 }

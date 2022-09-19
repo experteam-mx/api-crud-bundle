@@ -44,7 +44,7 @@ class EntityChangeMessageHandler implements MessageHandlerInterface
 
         if (!empty($coincidences)) {
             $this->modelLogger
-                ->entityChanges(
+                ->logEntityChanges(
                     $current,
                     $changes,
                     $className
