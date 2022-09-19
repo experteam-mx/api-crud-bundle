@@ -39,5 +39,17 @@
                 <argument type="service" id="service_container"/>
             </call>
         </service>
+
+        <service id="api_crud.model_logger" class="Experteam\ApiCrudBundle\Service\ModelLogger\ModelLogger" public="true">
+            <argument key="$elkLogger" type="service" id="Experteam\ApiBaseBundle\Service\ELKLogger\ELKLoggerInterface"/>
+            <argument key="$messageBus" type="service" id="Symfony\Component\Messenger\MessageBusInterface"/>
+        </service>
+        <service id="Experteam\ApiCrudBundle\Service\ModelLogger\ModelLoggerInterface" alias="api_crud.model_logger"/>
+
+        <service id="Experteam\ApiCrudBundle\MessageHandler\EntityChangeMessageHandler">
+            <argument key="$modelLogger" type="service" id="Experteam\ApiCrudBundle\Service\ModelLogger\ModelLoggerInterface"/>
+            <argument key="$parameterBag" type="service" id="Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface"/>
+            <tag name="messenger.message_handler" handles="Experteam\ApiCrudBundle\Message\EntityChangeMessage"/>
+        </service>
     </services>
 </container>
