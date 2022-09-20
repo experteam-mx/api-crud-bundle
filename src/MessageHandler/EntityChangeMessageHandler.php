@@ -33,13 +33,18 @@ class EntityChangeMessageHandler implements MessageHandlerInterface
             'current' => $current,
             'changes' => $changes,
             'class_name' => $className,
+            'fqn' => $fqn,
         ] = $message->getData();
 
         $allowedEntities = $this->parameterBag
             ->get('experteam_api_crud.logged_entities');
 
-        $coincidences = array_filter($allowedEntities, function ($entity) use ($className) {
-            return $entity['class'] === "App\\Entity\\$className"; // TODO: ver si se puede mejorar la obtención del nombre
+        if (empty($allowedEntities)) {
+            return;
+        }
+
+        $coincidences = array_filter($allowedEntities, function ($entity) use ($fqn) {
+            return $entity['class'] === $fqn;
         });
 
         if (!empty($coincidences)) {
