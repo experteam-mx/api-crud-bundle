@@ -70,7 +70,8 @@ class ModelLogger implements ModelLoggerInterface
                         'changes' => $changeSet,
                         'current' => $entity,
                         'class_name' => (new ReflectionClass($entity))
-                            ->getShortName()
+                            ->getShortName(),
+                        'fqn' => get_class($entity),
                     ])
                 );
         }
