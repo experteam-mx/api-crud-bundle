@@ -7,6 +7,7 @@ use Experteam\ApiBaseBundle\Service\ELKLogger\ELKLogger;
 use Experteam\ApiCrudBundle\Message\EntityChangeMessage;
 use ReflectionClass;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Serializer\SerializerInterface;
 
 class ModelLogger implements ModelLoggerInterface
 {
@@ -20,12 +21,19 @@ class ModelLogger implements ModelLoggerInterface
      */
     private $messageBus;
 
+    /**
+     * @var SerializerInterface
+     */
+    private $serializer;
+
     public function __construct(
         ELKLogger $elkLogger,
-        MessageBusInterface $messageBus
+        MessageBusInterface $messageBus,
+        SerializerInterface $serializer
     ) {
         $this->elkLogger = $elkLogger;
         $this->messageBus = $messageBus;
+        $this->serializer = $serializer;
     }
 
     public function logChanges(array $current, array $changes, string $className): void
@@ -68,7 +76,10 @@ class ModelLogger implements ModelLoggerInterface
                 ->dispatch(
                     new EntityChangeMessage([
                         'changes' => $changeSet,
-                        'current' => $entity,
+                        'current' => $this->serializer
+                            ->serialize($entity, 'json', [
+                                'groups' => ['read'], // TODO: configure in YML
+                            ]),
                         'class_name' => (new ReflectionClass($entity))
                             ->getShortName(),
                         'fqn' => get_class($entity),
