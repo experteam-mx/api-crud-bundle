@@ -86,6 +86,10 @@ class MessageController extends BaseController
         }
 
         $redisTransport->restoreMessages($messageInput->dateTimeFrom, $messageInput->dateTimeTo, $messageInput->entities, $messageInput->entityIds);
+
+        if ($messageInput->streamCompute)
+            $redisTransport->restoreStreamCompute($messageInput->dateTimeFrom, $messageInput->dateTimeTo, $messageInput->entities, $messageInput->entityIds);
+
         return [];
     }
 }

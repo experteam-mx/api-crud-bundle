@@ -33,4 +33,11 @@ class MessageInput
      * @OA\Property(type="array", @OA\Items(type="number"), description="Entity Ids")
      */
     public $entityIds = [];
+
+    /**
+     * @var bool
+     *
+     * @OA\Property(type="boolean", description="Send stream compute messages.", example="false")
+     */
+    public $streamCompute = false;
 }
