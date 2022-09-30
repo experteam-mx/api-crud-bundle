@@ -65,8 +65,14 @@ class ModelLogger implements ModelLoggerInterface
         $uow = $eventArgs->getEntityManager()
             ->getUnitOfWork();
 
-        foreach ($uow->getScheduledEntityUpdates() as $entity) {
-            $changeSet = $uow->getEntityChangeSet($entity);
+        $entities = array_merge(
+            $uow->getScheduledEntityDeletions(),
+            $uow->getScheduledEntityInsertions(),
+            $uow->getScheduledEntityUpdates()
+        );
+
+        foreach ($entities as $e) {
+            $changeSet = $uow->getEntityChangeSet($e);
 
             if (empty($changeSet)) {
                 continue;
@@ -77,12 +83,12 @@ class ModelLogger implements ModelLoggerInterface
                     new EntityChangeMessage([
                         'changes' => $changeSet,
                         'current' => $this->serializer
-                            ->serialize($entity, 'json', [
+                            ->serialize($e, 'json', [
                                 'groups' => ['read'], // TODO: configure in YML
                             ]),
-                        'class_name' => (new ReflectionClass($entity))
+                        'class_name' => (new ReflectionClass($e))
                             ->getShortName(),
-                        'fqn' => get_class($entity),
+                        'fqn' => get_class($e),
                     ])
                 );
         }
