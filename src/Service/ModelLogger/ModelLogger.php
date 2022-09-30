@@ -47,7 +47,7 @@ class ModelLogger implements ModelLoggerInterface
         $old = [];
         foreach ($current as $prop => $value) {
             $old[$prop] = in_array($prop, $changedProps)
-                ? $changes[$prop][0]
+                ? $changes[$prop][0] ?? null
                 : $value;
         }
 
