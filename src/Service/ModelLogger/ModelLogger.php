@@ -6,34 +6,30 @@ use Doctrine\ORM\Event\OnFlushEventArgs;
 use Experteam\ApiBaseBundle\Service\ELKLogger\ELKLogger;
 use Experteam\ApiCrudBundle\Message\EntityChangeMessage;
 use ReflectionClass;
+use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Serializer\SerializerInterface;
 
 class ModelLogger implements ModelLoggerInterface
 {
-    /**
-     * @var ELKLogger
-     */
-    protected $elkLogger;
+    private $elkLogger;
 
-    /**
-     * @var MessageBusInterface
-     */
     private $messageBus;
 
-    /**
-     * @var SerializerInterface
-     */
     private $serializer;
+
+    private $parameterBag;
 
     public function __construct(
         ELKLogger $elkLogger,
         MessageBusInterface $messageBus,
-        SerializerInterface $serializer
+        SerializerInterface $serializer,
+        ParameterBagInterface $parameterBag
     ) {
         $this->elkLogger = $elkLogger;
         $this->messageBus = $messageBus;
         $this->serializer = $serializer;
+        $this->parameterBag = $parameterBag;
     }
 
     public function logChanges(array $current, array $changes, string $className): void
@@ -72,6 +68,12 @@ class ModelLogger implements ModelLoggerInterface
         );
 
         foreach ($entities as $e) {
+            $fqn = get_class($e);
+
+            if (!$this->modelIsConfig($fqn)) {
+                continue;
+            }
+
             $changeSet = $uow->getEntityChangeSet($e);
 
             if (empty($changeSet)) {
@@ -88,9 +90,27 @@ class ModelLogger implements ModelLoggerInterface
                             ]),
                         'class_name' => (new ReflectionClass($e))
                             ->getShortName(),
-                        'fqn' => get_class($e),
                     ])
                 );
         }
+    }
+
+    private function modelIsConfig($fqn): bool
+    {
+        $allowedEntities = $this->parameterBag
+            ->get('experteam_api_crud.logged_entities');
+
+        if (empty($allowedEntities)) {
+            return false;
+        }
+
+        $coincidences = array_filter(
+            $allowedEntities,
+            function ($entity) use ($fqn) {
+                return $entity['class'] === $fqn;
+            }
+        );
+
+        return !empty($coincidences);
     }
 }
