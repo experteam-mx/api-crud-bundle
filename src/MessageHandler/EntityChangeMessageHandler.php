@@ -9,51 +9,27 @@ use Symfony\Component\Messenger\Handler\MessageHandlerInterface;
 
 class EntityChangeMessageHandler implements MessageHandlerInterface
 {
-    /**
-     * @var ModelLoggerInterface
-     */
     private $modelLogger;
 
-    /**
-     * @var ParameterBagInterface
-     */
-    protected $parameterBag;
-
     public function __construct(
-        ModelLoggerInterface $modelLogger,
-        ParameterBagInterface $parameterBag
+        ModelLoggerInterface $modelLogger
     ) {
         $this->modelLogger = $modelLogger;
-        $this->parameterBag = $parameterBag;
     }
 
     public function __invoke(EntityChangeMessage $message)
     {
         [
-            'current' => $current,
             'changes' => $changes,
+            'current' => $current,
             'class_name' => $className,
-            'fqn' => $fqn,
         ] = $message->getData();
 
-        $allowedEntities = $this->parameterBag
-            ->get('experteam_api_crud.logged_entities');
-
-        if (empty($allowedEntities)) {
-            return;
-        }
-
-        $coincidences = array_filter($allowedEntities, function ($entity) use ($fqn) {
-            return $entity['class'] === $fqn;
-        });
-
-        if (!empty($coincidences)) {
-            $this->modelLogger
-                ->logChanges(
-                    json_decode($current, true),
-                    $changes,
-                    $className
-                );
-        }
+        $this->modelLogger
+            ->logChanges(
+                json_decode($current, true),
+                $changes,
+                $className
+            );
     }
 }
