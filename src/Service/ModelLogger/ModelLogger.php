@@ -8,6 +8,7 @@ use Experteam\ApiCrudBundle\Message\EntityChangeMessage;
 use ReflectionClass;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Serializer\SerializerInterface;
 
 class ModelLogger implements ModelLoggerInterface
@@ -32,31 +33,7 @@ class ModelLogger implements ModelLoggerInterface
         $this->parameterBag = $parameterBag;
     }
 
-    public function logChanges(array $current, array $changes, string $className): void
-    {
-        $changedProps = array_keys($changes);
-
-        $changes = array_map(function ($item) {
-            return $item[1];
-        }, $changes);
-
-        $old = [];
-        foreach ($current as $prop => $value) {
-            $old[$prop] = in_array($prop, $changedProps)
-                ? $changes[$prop][0] ?? null
-                : $value;
-        }
-
-        $this->elkLogger
-            ->noticeLog("Model [$className] changed!", [
-                'model' => $className,
-                'changes' => $changes,
-                'new' => $current,
-                'old' => $old,
-            ]);
-    }
-
-    public function dispatchChanges(OnFlushEventArgs $eventArgs): void
+    public function dispatchChanges(OnFlushEventArgs $eventArgs, UserInterface $user): void
     {
         $uow = $eventArgs->getEntityManager()
             ->getUnitOfWork();
@@ -86,13 +63,49 @@ class ModelLogger implements ModelLoggerInterface
                         'changes' => $changeSet,
                         'current' => $this->serializer
                             ->serialize($e, 'json', [
-                                'groups' => ['read'], // TODO: configure in YML
+                                'groups' => ['read'],
                             ]),
                         'class_name' => (new ReflectionClass($e))
                             ->getShortName(),
+                        'user' => $this->serializer
+                            ->serialize($user, 'json', [
+                                'groups' => ['read'],
+                            ]),
                     ])
                 );
         }
+    }
+
+    public function logChanges(
+        array $current,
+        array $changes,
+        string $className,
+        array $user
+    ): void {
+        $changedProps = array_keys($changes);
+
+        $changes = array_map(function ($item) {
+            return $item[1];
+        }, $changes);
+
+        $old = [];
+        foreach ($current as $prop => $value) {
+            $old[$prop] = in_array($prop, $changedProps)
+                ? $changes[$prop][0] ?? null
+                : $value;
+        }
+
+        $this->elkLogger
+            ->noticeLog("Model [$className] changed!", [
+                'user' => [
+                    'id' => $user['id'],
+                    'username' => $user['username'],
+                ],
+                'model' => $className,
+                'changes' => $changes,
+                'new' => $current,
+                'old' => $old,
+            ]);
     }
 
     private function modelIsConfig($fqn): bool
