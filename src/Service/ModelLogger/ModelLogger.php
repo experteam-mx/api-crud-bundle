@@ -3,6 +3,7 @@
 namespace Experteam\ApiCrudBundle\Service\ModelLogger;
 
 use Doctrine\ORM\Event\OnFlushEventArgs;
+use Experteam\ApiBaseBundle\Security\User;
 use Experteam\ApiBaseBundle\Service\ELKLogger\ELKLogger;
 use Experteam\ApiCrudBundle\Message\EntityChangeMessage;
 use ReflectionClass;
@@ -32,31 +33,7 @@ class ModelLogger implements ModelLoggerInterface
         $this->parameterBag = $parameterBag;
     }
 
-    public function logChanges(array $current, array $changes, string $className): void
-    {
-        $changedProps = array_keys($changes);
-
-        $changes = array_map(function ($item) {
-            return $item[1];
-        }, $changes);
-
-        $old = [];
-        foreach ($current as $prop => $value) {
-            $old[$prop] = in_array($prop, $changedProps)
-                ? $changes[$prop][0] ?? null
-                : $value;
-        }
-
-        $this->elkLogger
-            ->noticeLog("Model [$className] changed!", [
-                'model' => $className,
-                'changes' => $changes,
-                'new' => $current,
-                'old' => $old,
-            ]);
-    }
-
-    public function dispatchChanges(OnFlushEventArgs $eventArgs): void
+    public function dispatchChanges(OnFlushEventArgs $eventArgs, User $user): void
     {
         $uow = $eventArgs->getEntityManager()
             ->getUnitOfWork();
@@ -66,6 +43,11 @@ class ModelLogger implements ModelLoggerInterface
             $uow->getScheduledEntityInsertions(),
             $uow->getScheduledEntityUpdates()
         );
+
+        $user = [
+            'id' => $user->getId(),
+            'username' => $user->getUsername(),
+        ];
 
         foreach ($entities as $e) {
             $fqn = get_class($e);
@@ -86,13 +68,43 @@ class ModelLogger implements ModelLoggerInterface
                         'changes' => $changeSet,
                         'current' => $this->serializer
                             ->serialize($e, 'json', [
-                                'groups' => ['read'], // TODO: configure in YML
+                                'groups' => ['read'],
                             ]),
                         'class_name' => (new ReflectionClass($e))
                             ->getShortName(),
+                        'user' => $user,
                     ])
                 );
         }
+    }
+
+    public function logChanges(
+        array $current,
+        array $changes,
+        string $className,
+        array $user
+    ): void {
+        $changedProps = array_keys($changes);
+
+        $changes = array_map(function ($item) {
+            return $item[1];
+        }, $changes);
+
+        $old = [];
+        foreach ($current as $prop => $value) {
+            $old[$prop] = in_array($prop, $changedProps)
+                ? $changes[$prop][0] ?? null
+                : $value;
+        }
+
+        $this->elkLogger
+            ->noticeLog("Model [$className] changed!", [
+                'user' => $user,
+                'model' => $className,
+                'changes' => $changes,
+                'new' => $current,
+                'old' => $old,
+            ]);
     }
 
     private function modelIsConfig($fqn): bool

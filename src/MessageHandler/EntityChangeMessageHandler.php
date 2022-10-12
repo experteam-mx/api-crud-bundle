@@ -4,7 +4,6 @@ namespace Experteam\ApiCrudBundle\MessageHandler;
 
 use Experteam\ApiCrudBundle\Message\EntityChangeMessage;
 use Experteam\ApiCrudBundle\Service\ModelLogger\ModelLoggerInterface;
-use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\Messenger\Handler\MessageHandlerInterface;
 
 class EntityChangeMessageHandler implements MessageHandlerInterface
@@ -23,13 +22,15 @@ class EntityChangeMessageHandler implements MessageHandlerInterface
             'changes' => $changes,
             'current' => $current,
             'class_name' => $className,
+            'user' => $user,
         ] = $message->getData();
 
         $this->modelLogger
             ->logChanges(
                 json_decode($current, true),
                 $changes,
-                $className
+                $className,
+                $user
             );
     }
 }
