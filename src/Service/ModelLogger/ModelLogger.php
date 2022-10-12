@@ -3,12 +3,12 @@
 namespace Experteam\ApiCrudBundle\Service\ModelLogger;
 
 use Doctrine\ORM\Event\OnFlushEventArgs;
+use Experteam\ApiBaseBundle\Security\User;
 use Experteam\ApiBaseBundle\Service\ELKLogger\ELKLogger;
 use Experteam\ApiCrudBundle\Message\EntityChangeMessage;
 use ReflectionClass;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
-use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Serializer\SerializerInterface;
 
 class ModelLogger implements ModelLoggerInterface
@@ -33,7 +33,7 @@ class ModelLogger implements ModelLoggerInterface
         $this->parameterBag = $parameterBag;
     }
 
-    public function dispatchChanges(OnFlushEventArgs $eventArgs, UserInterface $user): void
+    public function dispatchChanges(OnFlushEventArgs $eventArgs, User $user): void
     {
         $uow = $eventArgs->getEntityManager()
             ->getUnitOfWork();
@@ -43,6 +43,11 @@ class ModelLogger implements ModelLoggerInterface
             $uow->getScheduledEntityInsertions(),
             $uow->getScheduledEntityUpdates()
         );
+
+        $user = [
+            'id' => $user->getId(),
+            'username' => $user->getUsername(),
+        ];
 
         foreach ($entities as $e) {
             $fqn = get_class($e);
@@ -67,10 +72,7 @@ class ModelLogger implements ModelLoggerInterface
                             ]),
                         'class_name' => (new ReflectionClass($e))
                             ->getShortName(),
-                        'user' => $this->serializer
-                            ->serialize($user, 'json', [
-                                'groups' => ['read'],
-                            ]),
+                        'user' => $user,
                     ])
                 );
         }

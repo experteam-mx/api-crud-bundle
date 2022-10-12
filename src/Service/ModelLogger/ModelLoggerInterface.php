@@ -3,16 +3,16 @@
 namespace Experteam\ApiCrudBundle\Service\ModelLogger;
 
 use Doctrine\ORM\Event\OnFlushEventArgs;
-use Symfony\Component\Security\Core\User\UserInterface;
+use Experteam\ApiBaseBundle\Security\User;
 
 interface ModelLoggerInterface
 {
     /**
      * @param OnFlushEventArgs $eventArgs
-     * @param UserInterface $user
+     * @param User $user
      * @return void
      */
-    public function dispatchChanges(OnFlushEventArgs $eventArgs, UserInterface $user): void;
+    public function dispatchChanges(OnFlushEventArgs $eventArgs, User $user): void;
 
     /**
      * @param array $current
