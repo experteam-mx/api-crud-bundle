@@ -30,7 +30,7 @@ class EntityChangeMessageHandler implements MessageHandlerInterface
                 json_decode($current, true),
                 $changes,
                 $className,
-                json_decode($user, true)
+                $user
             );
     }
 }
