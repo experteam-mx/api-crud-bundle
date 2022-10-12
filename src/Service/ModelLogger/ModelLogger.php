@@ -99,10 +99,7 @@ class ModelLogger implements ModelLoggerInterface
 
         $this->elkLogger
             ->noticeLog("Model [$className] changed!", [
-                'user' => [
-                    'id' => $user['id'],
-                    'username' => $user['username'],
-                ],
+                'user' => $user,
                 'model' => $className,
                 'changes' => $changes,
                 'new' => $current,
