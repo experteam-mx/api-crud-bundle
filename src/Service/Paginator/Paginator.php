@@ -61,7 +61,7 @@ class Paginator implements PaginatorInterface
         )->getResult();
 
         try {
-            $total = $this->queryBuilderForTotal($queryBuilder, $criteria)->getQuery()->getSingleScalarResult();
+            $total = intval($this->queryBuilderForTotal($queryBuilder, $criteria)->getQuery()->getSingleScalarResult());
         } catch (NoResultException | NonUniqueResultException $e) {
             $total = 0;
         }
@@ -359,8 +359,11 @@ class Paginator implements PaginatorInterface
         if (!empty($dql)) {
             $queryBuilder->andWhere($dql);
 
-            foreach ($parameters as $key => $value)
-                $queryBuilder->setParameter($key, $value);
+            foreach ($parameters as $key => $value) {
+                if (!is_null($value)) {
+                    $queryBuilder->setParameter($key, $value);
+                }
+            }
         }
     }
 
@@ -394,50 +397,40 @@ class Paginator implements PaginatorInterface
      * @param string $filter
      * @param string $alias
      * @param string $field
-     * @param string $value
+     * @param string|null $value
      * @return string[]
      */
-    protected function getFilterWhere(string $filter, string $alias, string $field, string $value): array
+    protected function getFilterWhere(string $filter, string $alias, string $field, ?string $value): array
     {
         $parameter = "{$alias}_$field";
 
         switch ($filter) {
             case 'lk':
                 return [self::AND, "$alias.$field LIKE :$parameter", $parameter, "%$value%"];
-
             case 'olk':
                 return [self::OR, "$alias.$field LIKE :$parameter", $parameter, "%$value%"];
-
             case 'gt':
                 return [self::AND, "$alias.$field > :$parameter", $parameter, $value];
-
             case 'ogt':
                 return [self::OR, "$alias.$field > :$parameter", $parameter, $value];
-
             case 'gte':
                 return [self::AND, "$alias.$field >= :$parameter", $parameter, $value];
-
             case 'ogte':
                 return [self::OR, "$alias.$field >= :$parameter", $parameter, $value];
-
             case 'lt':
                 return [self::AND, "$alias.$field < :$parameter", $parameter, $value];
-
             case 'olt':
                 return [self::OR, "$alias.$field < :$parameter", $parameter, $value];
-
             case 'lte':
                 return [self::AND, "$alias.$field <= :$parameter", $parameter, $value];
-
             case 'olte':
                 return [self::OR, "$alias.$field <= :$parameter", $parameter, $value];
-
             case 'eq':
-                return [self::AND, "$alias.$field = :$parameter", $parameter, $value];
-
             case 'oeq':
-                return [self::OR, "$alias.$field = :$parameter", $parameter, $value];
-
+                return [(($filter === 'eq') ? self::AND : self::OR), "$alias.$field " . (is_null($value) ? 'IS NULL' : "= :$parameter"), $parameter, $value];
+            case 'neq':
+            case 'oneq':
+                return [(($filter === 'neq') ? self::AND : self::OR), "$alias.$field " . (is_null($value) ? 'IS NOT NULL' : "<> :$parameter"), $parameter, $value];
             default:
                 throw new BadRequestHttpException(sprintf('Invalid filter "%s"', $filter));
         }
