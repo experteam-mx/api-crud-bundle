@@ -78,7 +78,7 @@ class Paginator implements PaginatorInterface
     {
         $offset = $request->query->getInt('offset');
         $limit = $request->query->getInt('limit', self::LIMIT_DEFAULT);
-        $order = $request->query->get('order', []);
+        $order = ($request->query->has('order') ? $request->query->get('order') : []);
 
         if (!is_array($order))
             throw new BadRequestHttpException('Invalid parameter order, incorrect format.');
