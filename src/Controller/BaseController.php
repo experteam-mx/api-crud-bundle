@@ -2,6 +2,7 @@
 
 namespace Experteam\ApiCrudBundle\Controller;
 
+use Doctrine\ORM\EntityManagerInterface;
 use Experteam\ApiCrudBundle\Service\Paginator\PaginatorInterface;
 use Experteam\ApiBaseBundle\Service\Param\ParamInterface;
 use Experteam\ApiRedisBundle\Service\RedisClient\RedisClientInterface;
@@ -16,31 +17,39 @@ class BaseController extends \Experteam\ApiBaseBundle\Controller\BaseController
     /**
      * @var PaginatorInterface
      */
-    protected $paginator;
+    protected PaginatorInterface $paginator;
 
     /**
      * @var RedisClientInterface
      */
-    protected $redisClient;
+    protected RedisClientInterface $redisClient;
 
     /**
      * @var ViolationUtilInterface
      */
-    private $violator;
+    private ViolationUtilInterface $violator;
+
+    /**
+     * @var EntityManagerInterface
+     */
+    private EntityManagerInterface $entityManager;
 
     /**
      * @param PaginatorInterface $paginator
      * @param ParamInterface $param
      * @param RedisClientInterface $redisClient
+     * @param HttpClientInterface $httpClient
      * @param RequestUtilInterface $requestUtil
      * @param ViolationUtilInterface $violator
+     * @param EntityManagerInterface $entityManager
      */
-    public function __construct(PaginatorInterface $paginator, ParamInterface $param, RedisClientInterface $redisClient, HttpClientInterface $httpClient, RequestUtilInterface $requestUtil, ViolationUtilInterface $violator)
+    public function __construct(PaginatorInterface $paginator, ParamInterface $param, RedisClientInterface $redisClient, HttpClientInterface $httpClient, RequestUtilInterface $requestUtil, ViolationUtilInterface $violator, EntityManagerInterface $entityManager)
     {
         parent::__construct($param, $requestUtil, $httpClient);
         $this->paginator = $paginator;
         $this->redisClient = $redisClient;
         $this->violator = $violator;
+        $this->entityManager = $entityManager;
     }
 
     /**
@@ -50,7 +59,7 @@ class BaseController extends \Experteam\ApiBaseBundle\Controller\BaseController
      * @param bool $throwException
      * @return array
      */
-    protected function validate(string $type, $data, $submittedData, bool $throwException = true): array
+    protected function validate(string $type, mixed $data, mixed $submittedData, bool $throwException = true): array
     {
         $processedErrors = [];
         $form = $this->createForm($type, $data);
@@ -83,12 +92,11 @@ class BaseController extends \Experteam\ApiBaseBundle\Controller\BaseController
      * @param mixed $submittedData
      * @return mixed
      */
-    protected function save(string $type, $data, $submittedData): array
+    protected function save(string $type, mixed $data, mixed $submittedData): array
     {
         $this->validate($type, $data, $submittedData);
-        $entityManager = $this->getDoctrine()->getManager();
-        $entityManager->persist($data);
-        $entityManager->flush();
+        $this->entityManager->persist($data);
+        $this->entityManager->flush();
         $class = get_class($data);
         $key = str_replace('App\\Entity\\', '', $class);
         $key[0] = strtolower($key[0]);
