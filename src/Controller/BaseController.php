@@ -32,7 +32,7 @@ class BaseController extends \Experteam\ApiBaseBundle\Controller\BaseController
     /**
      * @var EntityManagerInterface
      */
-    private EntityManagerInterface $entityManager;
+    protected EntityManagerInterface $entityManager;
 
     /**
      * @param PaginatorInterface $paginator
