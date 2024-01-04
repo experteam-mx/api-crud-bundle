@@ -98,7 +98,7 @@ class BaseController extends \Experteam\ApiBaseBundle\Controller\BaseController
      */
     protected function save(string $type, mixed $data, mixed $submittedData, array $formOptions = []): array
     {
-        $this->validate($type, $data, $submittedData);
+        $this->validate($type, $data, $submittedData, true, $formOptions);
         $this->entityManager->persist($data);
         $this->entityManager->flush();
         $class = get_class($data);
