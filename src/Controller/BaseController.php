@@ -59,12 +59,13 @@ class BaseController extends \Experteam\ApiBaseBundle\Controller\BaseController
      * @param mixed $data
      * @param mixed $submittedData
      * @param bool $throwException
+     * @param array $formOptions
      * @return array
      */
-    protected function validate(string $type, mixed $data, mixed $submittedData, bool $throwException = true): array
+    protected function validate(string $type, mixed $data, mixed $submittedData, bool $throwException = true, array $formOptions = []): array
     {
         $processedErrors = [];
-        $form = $this->createForm($type, $data);
+        $form = $this->createForm($type, $data, $formOptions);
         $this->violator->validateDataTypes($form, $submittedData, get_class($data));
         $form->submit($submittedData);
 
@@ -92,11 +93,12 @@ class BaseController extends \Experteam\ApiBaseBundle\Controller\BaseController
      * @param string $type
      * @param mixed $data
      * @param mixed $submittedData
+     * @param array $formOptions
      * @return mixed
      */
-    protected function save(string $type, mixed $data, mixed $submittedData): array
+    protected function save(string $type, mixed $data, mixed $submittedData, array $formOptions = []): array
     {
-        $this->validate($type, $data, $submittedData);
+        $this->validate($type, $data, $submittedData, true, $formOptions);
         $this->entityManager->persist($data);
         $this->entityManager->flush();
         $class = get_class($data);
