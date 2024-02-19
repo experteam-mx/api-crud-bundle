@@ -15,36 +15,14 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 
 class BaseController extends \Experteam\ApiBaseBundle\Controller\BaseController
 {
-    /**
-     * @var PaginatorInterface
-     */
     protected PaginatorInterface $paginator;
 
-    /**
-     * @var RedisClientInterface
-     */
     protected RedisClientInterface $redisClient;
 
-    /**
-     * @var ViolationUtilInterface
-     */
     private ViolationUtilInterface $violator;
 
-    /**
-     * @var EntityManagerInterface
-     */
     protected EntityManagerInterface $entityManager;
 
-    /**
-     * @param PaginatorInterface $paginator
-     * @param ParamInterface $param
-     * @param RedisClientInterface $redisClient
-     * @param HttpClientInterface $httpClient
-     * @param RequestUtilInterface $requestUtil
-     * @param ViolationUtilInterface $violator
-     * @param EntityManagerInterface $entityManager
-     * @param TranslatorInterface $translator
-     */
     public function __construct(PaginatorInterface $paginator, ParamInterface $param, RedisClientInterface $redisClient, HttpClientInterface $httpClient, RequestUtilInterface $requestUtil, ViolationUtilInterface $violator, EntityManagerInterface $entityManager, TranslatorInterface $translator)
     {
         parent::__construct($param, $requestUtil, $httpClient, $translator);
@@ -54,14 +32,6 @@ class BaseController extends \Experteam\ApiBaseBundle\Controller\BaseController
         $this->entityManager = $entityManager;
     }
 
-    /**
-     * @param string $type
-     * @param mixed $data
-     * @param mixed $submittedData
-     * @param bool $throwException
-     * @param array $formOptions
-     * @return array
-     */
     protected function validate(string $type, mixed $data, mixed $submittedData, bool $throwException = true, array $formOptions = []): array
     {
         $processedErrors = [];
@@ -89,18 +59,16 @@ class BaseController extends \Experteam\ApiBaseBundle\Controller\BaseController
         return $processedErrors;
     }
 
-    /**
-     * @param string $type
-     * @param mixed $data
-     * @param mixed $submittedData
-     * @param array $formOptions
-     * @return mixed
-     */
-    protected function save(string $type, mixed $data, mixed $submittedData, array $formOptions = []): array
+    protected function save(string $type, mixed $data, mixed $submittedData, array $formOptions = [], bool $refreshData = false): array
     {
         $this->validate($type, $data, $submittedData, true, $formOptions);
         $this->entityManager->persist($data);
         $this->entityManager->flush();
+
+        if ($refreshData) {
+            $this->entityManager->refresh($data);
+        }
+
         $class = get_class($data);
         $key = str_replace('App\\Entity\\', '', $class);
         $key[0] = strtolower($key[0]);
