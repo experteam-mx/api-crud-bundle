@@ -19,25 +19,13 @@ class Paginator implements PaginatorInterface
 {
     const LIMIT_DEFAULT = 50;
     const LIMIT_MAXIMUM = 1000;
-
     const NESTED_SEPARATOR = '@';
     const AND = 'AND';
     const OR = 'OR';
 
-    /**
-     * @var EntityManagerInterface
-     */
-    protected $entityManager;
-
-    /**
-     * @var Request
-     */
-    protected $request;
-
-    /**
-     * @var int
-     */
-    protected $incrementAlias = 0;
+    protected EntityManagerInterface $entityManager;
+    protected Request $request;
+    protected int $incrementAlias = 0;
 
     public function __construct(EntityManagerInterface $entityManager, RequestStack $requestStack)
     {
@@ -45,35 +33,40 @@ class Paginator implements PaginatorInterface
         $this->request = $requestStack->getCurrentRequest();
     }
 
-    /**
-     * @param string $collectionKey
-     * @param Request $request
-     * @param ServiceEntityRepository $repository
-     * @param array $criteria
-     * @return array
-     */
     public function paginate(string $collectionKey, Request $request, ServiceEntityRepository $repository, array $criteria = []): array
     {
         $queryBuilder = $repository->createQueryBuilder('e');
-        $result = $this->queryForTranslatable(
-            $this->queryBuilderForResult($queryBuilder, $request, $criteria),
-            $request
-        )->getResult();
+        $queryBuilderForResult = $this->queryBuilderForResult($queryBuilder, $request, $criteria);
+        $result = $this->queryForTranslatable($queryBuilderForResult, $request)->getResult();
 
         try {
-            $total = intval($this->queryBuilderForTotal($queryBuilder, $criteria)->getQuery()->getSingleScalarResult());
-        } catch (NoResultException | NonUniqueResultException $e) {
+            $queryBuilderForTotal = $this->queryBuilderForTotal($queryBuilder, $criteria);
+            $total = intval($this->queryForTranslatable($queryBuilderForTotal, $request)->getSingleScalarResult());
+        } catch (NoResultException|NonUniqueResultException) {
             $total = 0;
         }
 
         return ['total' => $total, $collectionKey => $result];
     }
 
-    /**
-     * @param Request $request
-     * @param string $entityClass
-     * @return array
-     */
+    public function queryBuilderForResult(QueryBuilder $queryBuilder, Request $request, array $criteria = []): QueryBuilder
+    {
+        $entityClass = $queryBuilder->getDQLPart('from')[0]->getFrom();
+        [$offset, $limit, $order] = $this->offsetLimitOrder($request, $entityClass);
+        $rootAlias = $queryBuilder->getRootAliases()[0];
+
+        $queryBuilderResult = clone $queryBuilder;
+        $queryBuilderResult
+            ->setMaxResults($limit)
+            ->setFirstResult($offset);
+
+        $this->addCriteria($queryBuilderResult, $criteria, $rootAlias);
+
+        $this->addOrder($queryBuilderResult, $order, $rootAlias);
+
+        return $queryBuilderResult;
+    }
+
     private function offsetLimitOrder(Request $request, string $entityClass): array
     {
         $offset = $request->query->getInt('offset');
@@ -100,83 +93,7 @@ class Paginator implements PaginatorInterface
         return [$offset, $limit, $order];
     }
 
-    /**
-     * @param QueryBuilder $queryBuilder
-     * @param Request $request
-     * @param array $criteria
-     * @return QueryBuilder
-     */
-    public function queryBuilderForResult(QueryBuilder $queryBuilder, Request $request, array $criteria = []): QueryBuilder
-    {
-        $entityClass = $queryBuilder->getDQLPart('from')[0]->getFrom();
-        [$offset, $limit, $order] = $this->offsetLimitOrder($request, $entityClass);
-        $rootAlias = $queryBuilder->getRootAliases()[0];
-
-        $queryBuilderResult = clone $queryBuilder;
-        $queryBuilderResult
-            ->setMaxResults($limit)
-            ->setFirstResult($offset);
-
-        $this->addCriteria($queryBuilderResult, $criteria, $rootAlias);
-
-        $this->addOrder($queryBuilderResult, $order, $rootAlias);
-
-        return $queryBuilderResult;
-    }
-
-    /**
-     * @param QueryBuilder $queryBuilder
-     * @param Request $request
-     * @return Query
-     */
-    public function queryForTranslatable(QueryBuilder $queryBuilder, Request $request): Query
-    {
-        $entityClass = $queryBuilder->getDQLPart('from')[0]->getFrom();
-        $query = $queryBuilder->getQuery();
-
-        if (in_array(Translatable::class, array_values(class_implements($entityClass)))) {
-            $query->setHint(Query::HINT_CUSTOM_OUTPUT_WALKER, 'Gedmo\\Translatable\\Query\\TreeWalker\\TranslationWalker');
-            $query->setHint(TranslatableListener::HINT_TRANSLATABLE_LOCALE, $request->query->get('locale'));
-            $query->setHint(TranslatableListener::HINT_FALLBACK, 1);
-        }
-
-        return $query;
-    }
-
-    /**
-     * @param QueryBuilder $queryBuilder
-     * @param array $criteria
-     * @return QueryBuilder
-     */
-    public function queryBuilderForTotal(QueryBuilder $queryBuilder, array $criteria = []): QueryBuilder
-    {
-        $entityClass = $queryBuilder->getDQLPart('from')[0]->getFrom();
-        $metadata = $this->getClassMetadata($entityClass);
-        $rootAlias = $queryBuilder->getRootAliases()[0];
-
-        $queryBuilderCount = clone $queryBuilder;
-        $queryBuilderCount->resetDQLPart('select');
-        $queryBuilderCount->select(sprintf('count(%s.%s)', $rootAlias, $metadata->getSingleIdentifierFieldName()));
-
-        $this->addCriteria($queryBuilderCount, $criteria, $rootAlias);
-
-        return $queryBuilderCount;
-    }
-
-    /**
-     * @param string $className
-     * @return ClassMetadata
-     */
-    protected function getClassMetadata(string $className): ClassMetadata
-    {
-        return $this->entityManager->getClassMetadata($className);
-    }
-
-    /**
-     * @param string $field
-     * @param string $entityClass
-     */
-    protected function validateField(string $field, string $entityClass)
+    protected function validateField(string $field, string $entityClass): void
     {
         $metadata = $this->getClassMetadata($entityClass);
         $_field = $field;
@@ -196,112 +113,24 @@ class Paginator implements PaginatorInterface
             throw new BadRequestHttpException(sprintf('Invalid field, "%s" not found', $field));
     }
 
-    /**
-     * @param string $field
-     * @return array [associations, field]
-     */
-    protected function splitFieldParts(string $field)
+    protected function getClassMetadata(string $className): ClassMetadata
+    {
+        return $this->entityManager->getClassMetadata($className);
+    }
+
+    protected function isFieldNested(string $field): bool
+    {
+        return (str_contains($field, self::NESTED_SEPARATOR));
+    }
+
+    protected function splitFieldParts(string $field): array
     {
         $parts = explode(self::NESTED_SEPARATOR, $field);
         $field = array_pop($parts);
         return [$parts, $field];
     }
 
-    /**
-     * @param string $field
-     * @return bool
-     */
-    protected function isFieldNested(string $field): bool
-    {
-        return (strpos($field, self::NESTED_SEPARATOR) !== false);
-    }
-
-    /**
-     * @param QueryBuilder $queryBuilder
-     * @param array $associations
-     * @param string $rootAlias
-     * @param bool $leftJoin
-     * @return string
-     */
-    protected function addJoinForAssociations(QueryBuilder $queryBuilder, array $associations, string $rootAlias, bool $leftJoin = false)
-    {
-        $parentAlias = $alias = $rootAlias;
-
-        foreach ($associations as $association) {
-            $alias = sprintf('%s_a%d', $association, $this->incrementAlias);
-            $join = "$parentAlias.$association";
-
-            if (!$this->joinExists($queryBuilder, $alias, $association, $rootAlias)) {
-                if ($leftJoin)
-                    $queryBuilder->leftJoin($join, $alias);
-                else
-                    $queryBuilder->innerJoin($join, $alias);
-            }
-
-            $parentAlias = $alias;
-            $this->incrementAlias++;
-        }
-
-        return $alias;
-    }
-
-    /**
-     * @param QueryBuilder $queryBuilder
-     * @param string $alias
-     * @param string $association
-     * @param string $rootAlias
-     * @return bool
-     */
-    protected function joinExists(QueryBuilder $queryBuilder, string $alias, string $association, string $rootAlias)
-    {
-        $dqlParts = $queryBuilder->getDQLPart('join');
-
-        foreach ($dqlParts[$rootAlias] ?? [] as $join)
-            if (sprintf('%s.%s', $alias, $association) === $join->getJoin())
-                return true;
-
-        return false;
-    }
-
-    /**
-     * @param QueryBuilder $queryBuilder
-     * @param string $field
-     * @param string $rootAlias
-     * @param bool $leftJoin
-     * @return array [alias, field]
-     */
-    protected function getNestedAliasField(QueryBuilder $queryBuilder, string $field, string $rootAlias, bool $leftJoin = false): array
-    {
-        [$associations, $field] = $this->splitFieldParts($field);
-
-        $alias = $this->addJoinForAssociations($queryBuilder, $associations, $rootAlias, $leftJoin);
-
-        return [$alias, $field];
-    }
-
-    /**
-     * @param QueryBuilder $queryBuilder
-     * @param array $order
-     * @param string $rootAlias
-     */
-    protected function addOrder(QueryBuilder $queryBuilder, array $order, string $rootAlias)
-    {
-        foreach ($order as $field => $direction) {
-            [$alias, $_field] = $this->isFieldNested($field)
-                ? $this->getNestedAliasField($queryBuilder, $field, $rootAlias, true)
-                : [$rootAlias, $field];
-
-            $queryBuilder
-                ->addOrderBy("$alias.$_field", strtoupper($direction));
-        }
-    }
-
-    /**
-     * @param QueryBuilder $queryBuilder
-     * @param array $criteria
-     * @param string $rootAlias
-     */
-    protected function addCriteria(QueryBuilder $queryBuilder, array $criteria, string $rootAlias)
+    protected function addCriteria(QueryBuilder $queryBuilder, array $criteria, string $rootAlias): void
     {
         $criteria = $this->sortCriteriaByRequest($criteria);
         $dql = '';
@@ -364,15 +193,11 @@ class Paginator implements PaginatorInterface
         }
     }
 
-    /**
-     * @param array $criteria
-     * @return array
-     */
-    protected function sortCriteriaByRequest(array $criteria)
+    protected function sortCriteriaByRequest(array $criteria): array
     {
         $ordered = [];
 
-        foreach(array_keys($this->request->query->all()) as $key) {
+        foreach (array_keys($this->request->query->all()) as $key) {
             if (array_key_exists($key, $criteria))
                 $ordered[$key] = $criteria[$key];
         }
@@ -380,23 +205,48 @@ class Paginator implements PaginatorInterface
         return $ordered;
     }
 
-    /**
-     * @param string $dql
-     * @param string $operator
-     * @param string $expression
-     */
-    protected function updateDQL(string &$dql, string $operator, string $expression)
+    protected function getNestedAliasField(QueryBuilder $queryBuilder, string $field, string $rootAlias, bool $leftJoin = false): array
     {
-        $dql .= empty($dql) ? "$expression" : " $operator $expression";
+        [$associations, $field] = $this->splitFieldParts($field);
+
+        $alias = $this->addJoinForAssociations($queryBuilder, $associations, $rootAlias, $leftJoin);
+
+        return [$alias, $field];
     }
 
-    /**
-     * @param string $filter
-     * @param string $alias
-     * @param string $field
-     * @param string|null $value
-     * @return string[]
-     */
+    protected function addJoinForAssociations(QueryBuilder $queryBuilder, array $associations, string $rootAlias, bool $leftJoin = false): string
+    {
+        $parentAlias = $alias = $rootAlias;
+
+        foreach ($associations as $association) {
+            $alias = sprintf('%s_a%d', $association, $this->incrementAlias);
+            $join = "$parentAlias.$association";
+
+            if (!$this->joinExists($queryBuilder, $alias, $association, $rootAlias)) {
+                if ($leftJoin)
+                    $queryBuilder->leftJoin($join, $alias);
+                else
+                    $queryBuilder->innerJoin($join, $alias);
+            }
+
+            $parentAlias = $alias;
+            $this->incrementAlias++;
+        }
+
+        return $alias;
+    }
+
+    protected function joinExists(QueryBuilder $queryBuilder, string $alias, string $association, string $rootAlias): bool
+    {
+        $dqlParts = $queryBuilder->getDQLPart('join');
+
+        foreach ($dqlParts[$rootAlias] ?? [] as $join)
+            if (sprintf('%s.%s', $alias, $association) === $join->getJoin())
+                return true;
+
+        return false;
+    }
+
     protected function getFilterWhere(string $filter, string $alias, string $field, ?string $value): array
     {
         $parameter = "{$alias}_$field";
@@ -431,5 +281,51 @@ class Paginator implements PaginatorInterface
             default:
                 throw new BadRequestHttpException(sprintf('Invalid filter "%s"', $filter));
         }
+    }
+
+    protected function updateDQL(string &$dql, string $operator, string $expression): void
+    {
+        $dql .= empty($dql) ? "$expression" : " $operator $expression";
+    }
+
+    protected function addOrder(QueryBuilder $queryBuilder, array $order, string $rootAlias): void
+    {
+        foreach ($order as $field => $direction) {
+            [$alias, $_field] = $this->isFieldNested($field)
+                ? $this->getNestedAliasField($queryBuilder, $field, $rootAlias, true)
+                : [$rootAlias, $field];
+
+            $queryBuilder
+                ->addOrderBy("$alias.$_field", strtoupper($direction));
+        }
+    }
+
+    public function queryForTranslatable(QueryBuilder $queryBuilder, Request $request): Query
+    {
+        $entityClass = $queryBuilder->getDQLPart('from')[0]->getFrom();
+        $query = $queryBuilder->getQuery();
+
+        if (in_array(Translatable::class, array_values(class_implements($entityClass)))) {
+            $query->setHint(Query::HINT_CUSTOM_OUTPUT_WALKER, 'Gedmo\\Translatable\\Query\\TreeWalker\\TranslationWalker');
+            $query->setHint(TranslatableListener::HINT_TRANSLATABLE_LOCALE, $request->query->get('locale'));
+            $query->setHint(TranslatableListener::HINT_FALLBACK, 1);
+        }
+
+        return $query;
+    }
+
+    public function queryBuilderForTotal(QueryBuilder $queryBuilder, array $criteria = []): QueryBuilder
+    {
+        $entityClass = $queryBuilder->getDQLPart('from')[0]->getFrom();
+        $metadata = $this->getClassMetadata($entityClass);
+        $rootAlias = $queryBuilder->getRootAliases()[0];
+
+        $queryBuilderCount = clone $queryBuilder;
+        $queryBuilderCount->resetDQLPart('select');
+        $queryBuilderCount->select(sprintf('count(%s.%s)', $rootAlias, $metadata->getSingleIdentifierFieldName()));
+
+        $this->addCriteria($queryBuilderCount, $criteria, $rootAlias);
+
+        return $queryBuilderCount;
     }
 }
