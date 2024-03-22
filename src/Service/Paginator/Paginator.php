@@ -7,6 +7,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\NonUniqueResultException;
 use Doctrine\ORM\NoResultException;
 use Doctrine\ORM\Query;
+use Doctrine\ORM\Query\Expr;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\Mapping\ClassMetadata;
 use Gedmo\Translatable\Translatable;
@@ -249,6 +250,7 @@ class Paginator implements PaginatorInterface
 
     protected function getFilterWhere(string $filter, string $alias, string $field, ?string $value): array
     {
+        $expr = new Expr();
         $parameter = "{$alias}_$field";
 
         switch ($filter) {
@@ -278,6 +280,12 @@ class Paginator implements PaginatorInterface
             case 'neq':
             case 'oneq':
                 return [(($filter === 'neq') ? self::AND : self::OR), "$alias.$field " . (is_null($value) ? 'IS NOT NULL' : "<> :$parameter"), $parameter, $value];
+            case 'in':
+            case 'oin':
+                return [(($filter === 'in') ? self::AND : self::OR), $expr->in("$alias.$field", ":$parameter"), $parameter, explode(',', $value)];
+            case 'nin':
+            case 'noin':
+                return [(($filter === 'nin') ? self::AND : self::OR), $expr->notIn("$alias.$field", ":$parameter"), $parameter, explode(',', $value)];
             default:
                 throw new BadRequestHttpException(sprintf('Invalid filter "%s"', $filter));
         }
