@@ -9,27 +9,18 @@ use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Validator\ConstraintViolation;
 use Symfony\Component\Validator\ConstraintViolationListInterface;
-use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 class ViolationUtil implements ViolationUtilInterface
 {
-    /**
-     * @var ValidatorInterface
-     */
-    protected $validator;
+    protected ValidatorInterface $validator;
 
-    /**
-     * @var EntityManagerInterface
-     */
-    protected $entityManager;
+    protected EntityManagerInterface $entityManager;
 
-    /**
-     * @var FormFactoryInterface
-     */
-    protected $formFactory;
+    protected FormFactoryInterface $formFactory;
 
     public function __construct(ValidatorInterface $validator, EntityManagerInterface $entityManager, FormFactoryInterface $formFactory)
     {
@@ -38,10 +29,6 @@ class ViolationUtil implements ViolationUtilInterface
         $this->formFactory = $formFactory;
     }
 
-    /**
-     * @param ConstraintViolationListInterface $violations
-     * @return array
-     */
     public function build(ConstraintViolationListInterface $violations): array
     {
         $errors = [];
@@ -54,10 +41,6 @@ class ViolationUtil implements ViolationUtilInterface
         return $this->buildMessages($errors);
     }
 
-    /**
-     * @param array $errors
-     * @return array
-     */
     public function buildMessages(array $errors): array
     {
         $result = [];
@@ -86,16 +69,14 @@ class ViolationUtil implements ViolationUtilInterface
         return $result;
     }
 
-    /**
-     * @param FormInterface $form
-     * @param $submittedData
-     * @param string $entityClass
-     * @param bool $throwException
-     * @return array
-     */
     public function validateDataTypes(FormInterface $form, $submittedData, string $entityClass, bool $throwException = true): array
     {
         $validationTypes = $this->getValidationTypes($form, $entityClass);
+
+        if (empty($validationTypes)) {
+            return [];
+        }
+
         $constraints = new Assert\Collection($validationTypes);
         $constraints->allowExtraFields = true;
         $constraints->allowMissingFields = true;
@@ -120,11 +101,6 @@ class ViolationUtil implements ViolationUtilInterface
         return $processedErrors;
     }
 
-    /**
-     * @param FormInterface $formType
-     * @param string $entityClass
-     * @return array
-     */
     protected function getValidationTypes(FormInterface $formType, string $entityClass): array
     {
         $validationTypes = [];
@@ -135,26 +111,30 @@ class ViolationUtil implements ViolationUtilInterface
 
             if (isset($metadata->fieldMappings[$fieldName])) {
                 $type = $this->getTypeFromDoctrine($metadata->fieldMappings[$fieldName]['type']);
-                if (!is_null($type))
-                    $validationTypes[$fieldName] = $type;
 
+                if (!is_null($type)) {
+                    $validationTypes[$fieldName] = $type;
+                }
             } elseif (isset($metadata->associationMappings[$fieldName])) {
                 switch ($metadata->associationMappings[$fieldName]['type']) {
                     case 1: // OneToOne
                     case 2: // ManyToOne
-                        if (property_exists($entityClass, $fieldName . 'Id'))
+                        if (property_exists($entityClass, $fieldName . 'Id')) {
                             $validationTypes[$fieldName . 'Id'] = new Assert\Type('integer');
-                        else {
+                        } else {
                             $childTypeClass = get_class($fieldForm->getConfig()->getType()->getInnerType());
                             $childEntityClass = 'App\\Entity\\' . substr(basename(str_replace('\\', '/', $childTypeClass)), 0, -4);
                             $childForm = $this->formFactory->create($childTypeClass);
-
                             $_validationTypes = $this->getValidationTypes($childForm, $childEntityClass);
-                            $_collection = new Assert\Collection($_validationTypes);
-                            $_collection->allowMissingFields = true;
-                            $_collection->allowExtraFields = true;
-                            $validationTypes[$fieldName] = $_collection;
+
+                            if (!empty($_validationTypes)) {
+                                $_collection = new Assert\Collection($_validationTypes);
+                                $_collection->allowMissingFields = true;
+                                $_collection->allowExtraFields = true;
+                                $validationTypes[$fieldName] = $_collection;
+                            }
                         }
+
                         break;
                     case 4:
                     case 8: // ManyToMany
@@ -164,12 +144,14 @@ class ViolationUtil implements ViolationUtilInterface
                             $childTypeClass = $fieldForm->getConfig()->getOption('entry_type');
                             $childEntityClass = 'App\\Entity\\' . substr(basename(str_replace('\\', '/', $childTypeClass)), 0, -4);
                             $childForm = $this->formFactory->create($childTypeClass);
-
                             $_validationTypes = $this->getValidationTypes($childForm, $childEntityClass);
-                            $_collection = new Assert\Collection($_validationTypes);
-                            $_collection->allowMissingFields = true;
-                            $_collection->allowExtraFields = true;
-                            $validationTypes[$fieldName] = new Assert\All([$_collection]);
+
+                            if (!empty($_validationTypes)) {
+                                $_collection = new Assert\Collection($_validationTypes);
+                                $_collection->allowMissingFields = true;
+                                $_collection->allowExtraFields = true;
+                                $validationTypes[$fieldName] = new Assert\All([$_collection]);
+                            }
                         } else {
                             $validationTypes[$fieldName] = [
                                 new Assert\Type('array'),
@@ -178,6 +160,8 @@ class ViolationUtil implements ViolationUtilInterface
                                 ])
                             ];
                         }
+
+                        break;
                 }
             }
         }
@@ -185,39 +169,23 @@ class ViolationUtil implements ViolationUtilInterface
         return $validationTypes;
     }
 
-    /**
-     * @param string $type
-     * @return Assert\Type|null
-     */
-    private function getTypeFromDoctrine(string $type): ?Assert\Type
+    private function getClassMetadata(string $className): ClassMetadata
     {
-        switch ($type) {
-            case 'decimal':
-            case 'float':
-                return new Assert\Type('numeric');
-            case 'bigint':
-            case 'integer':
-            case 'smallint':
-                return new Assert\Type('integer');
-            case 'date':
-            case 'datetime':
-            case 'time':
-            case 'text':
-            case 'string':
-                return new Assert\Type('string');
-            case 'json':
-                return new Assert\Type('array');
-            case 'boolean':
-                return new Assert\Type('bool');
-            default:
-                return null;
-        }
+        return $this->entityManager->getClassMetadata($className);
     }
 
-    /**
-     * @param string $propertyPath
-     * @return string
-     */
+    private function getTypeFromDoctrine(string $type): ?Assert\Type
+    {
+        return match ($type) {
+            'decimal', 'float' => new Assert\Type('numeric'),
+            'bigint', 'integer', 'smallint' => new Assert\Type('integer'),
+            'date', 'datetime', 'time', 'text', 'string' => new Assert\Type('string'),
+            'json' => new Assert\Type('array'),
+            'boolean' => new Assert\Type('bool'),
+            default => null
+        };
+    }
+
     private function formatPropertyPath(string $propertyPath): string
     {
         $property = '';
@@ -227,14 +195,5 @@ class ViolationUtil implements ViolationUtilInterface
         }
 
         return ltrim($property, '.');
-    }
-
-    /**
-     * @param string $className
-     * @return ClassMetadata
-     */
-    private function getClassMetadata(string $className): ClassMetadata
-    {
-        return $this->entityManager->getClassMetadata($className);
     }
 }
