@@ -13,10 +13,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
 
 class TranslatableRepository extends ServiceEntityRepository
 {
-    /**
-     * @var Request|null
-     */
-    private $request;
+    private ?Request $request;
 
     public function __construct(ManagerRegistry $registry, string $entityClass, RequestStack $requestStack)
     {
@@ -24,11 +21,7 @@ class TranslatableRepository extends ServiceEntityRepository
         $this->request = $requestStack->getCurrentRequest();
     }
 
-    /**
-     * @param string $id
-     * @return int|mixed|string|null
-     */
-    public function findTranslatedById(string $id)
+    public function findTranslatedById(string $id): mixed
     {
         $queryBuilder = $this->createQueryBuilder("e");
 
@@ -38,12 +31,12 @@ class TranslatableRepository extends ServiceEntityRepository
         $query = $queryBuilder->getQuery();
 
         $query->setHint(Query::HINT_CUSTOM_OUTPUT_WALKER, 'Gedmo\\Translatable\\Query\\TreeWalker\\TranslationWalker');
-        $query->setHint(TranslatableListener::HINT_TRANSLATABLE_LOCALE, $this->request->query->get('locale'));
+        $query->setHint(TranslatableListener::HINT_TRANSLATABLE_LOCALE, $this->request->getLocale());
         $query->setHint(TranslatableListener::HINT_FALLBACK, 1);
 
         try {
             return $query->getSingleResult();
-        } catch (NoResultException | NonUniqueResultException $e) {
+        } catch (NoResultException | NonUniqueResultException) {
             return null;
         }
     }

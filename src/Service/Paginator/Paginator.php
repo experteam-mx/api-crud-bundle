@@ -315,7 +315,7 @@ class Paginator implements PaginatorInterface
 
         if (in_array(Translatable::class, array_values(class_implements($entityClass)))) {
             $query->setHint(Query::HINT_CUSTOM_OUTPUT_WALKER, 'Gedmo\\Translatable\\Query\\TreeWalker\\TranslationWalker');
-            $query->setHint(TranslatableListener::HINT_TRANSLATABLE_LOCALE, $request->query->get('locale'));
+            $query->setHint(TranslatableListener::HINT_TRANSLATABLE_LOCALE, $request->getLocale());
             $query->setHint(TranslatableListener::HINT_FALLBACK, 1);
         }
 
