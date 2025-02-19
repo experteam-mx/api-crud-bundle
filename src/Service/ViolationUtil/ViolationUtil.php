@@ -16,17 +16,12 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 class ViolationUtil implements ViolationUtilInterface
 {
-    protected ValidatorInterface $validator;
-
-    protected EntityManagerInterface $entityManager;
-
-    protected FormFactoryInterface $formFactory;
-
-    public function __construct(ValidatorInterface $validator, EntityManagerInterface $entityManager, FormFactoryInterface $formFactory)
+    public function __construct(
+        private readonly ValidatorInterface     $validator,
+        private readonly EntityManagerInterface $entityManager,
+        private readonly FormFactoryInterface   $formFactory
+    )
     {
-        $this->validator = $validator;
-        $this->entityManager = $entityManager;
-        $this->formFactory = $formFactory;
     }
 
     public function build(ConstraintViolationListInterface $violations): array
@@ -186,7 +181,7 @@ class ViolationUtil implements ViolationUtilInterface
         };
     }
 
-    private function formatPropertyPath(string $propertyPath): string
+    public function formatPropertyPath(string $propertyPath): string
     {
         $property = '';
 

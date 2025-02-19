@@ -12,4 +12,6 @@ interface ViolationUtilInterface
     public function buildMessages(array $errors): array;
 
     public function validateDataTypes(FormInterface $form, $submittedData, string $entityClass, bool $throwException = true): array;
+
+    public function formatPropertyPath(string $propertyPath): string;
 }
