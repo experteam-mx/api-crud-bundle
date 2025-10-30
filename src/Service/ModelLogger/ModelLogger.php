@@ -35,7 +35,7 @@ class ModelLogger implements ModelLoggerInterface
 
     public function dispatchChanges(OnFlushEventArgs $eventArgs, User $user): void
     {
-        $uow = $eventArgs->getEntityManager()
+        $uow = $eventArgs->getObjectManager()
             ->getUnitOfWork();
 
         $entities = array_merge(
