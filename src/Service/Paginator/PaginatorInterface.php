@@ -9,11 +9,11 @@ use Symfony\Component\HttpFoundation\Request;
 
 interface PaginatorInterface
 {
-    public function paginate(string $collectionKey, Request $request, ServiceEntityRepository $repository, array $criteria = []): array;
+    public function paginate(string $collectionKey, ServiceEntityRepository $repository, array $criteria = []): array;
 
-    public function queryBuilderForResult(QueryBuilder $queryBuilder, Request $request, array $criteria = []): QueryBuilder;
+    public function queryBuilderForResult(QueryBuilder $queryBuilder, array $criteria = []): QueryBuilder;
 
-    public function queryForTranslatable(QueryBuilder $queryBuilder, Request $request): Query;
+    public function queryForTranslatable(QueryBuilder $queryBuilder): Query;
 
     public function queryBuilderForTotal(QueryBuilder $queryBuilder, array $criteria = []): QueryBuilder;
 }

@@ -24,25 +24,26 @@ class Paginator implements PaginatorInterface
     const AND = 'AND';
     const OR = 'OR';
 
-    protected EntityManagerInterface $entityManager;
-    protected Request $request;
+    public Request $request;
     protected int $incrementAlias = 0;
 
-    public function __construct(EntityManagerInterface $entityManager, RequestStack $requestStack)
+    public function __construct(
+        protected EntityManagerInterface $entityManager,
+        RequestStack                     $requestStack
+    )
     {
-        $this->entityManager = $entityManager;
-        $this->request = $requestStack->getCurrentRequest();
+        $this->request = ($requestStack->getCurrentRequest() ?? Request::createFromGlobals());
     }
 
-    public function paginate(string $collectionKey, Request $request, ServiceEntityRepository $repository, array $criteria = []): array
+    public function paginate(string $collectionKey, ServiceEntityRepository $repository, array $criteria = []): array
     {
         $queryBuilder = $repository->createQueryBuilder('e');
-        $queryBuilderForResult = $this->queryBuilderForResult($queryBuilder, $request, $criteria);
-        $result = $this->queryForTranslatable($queryBuilderForResult, $request)->getResult();
+        $queryBuilderForResult = $this->queryBuilderForResult($queryBuilder, $criteria);
+        $result = $this->queryForTranslatable($queryBuilderForResult)->getResult();
 
         try {
             $queryBuilderForTotal = $this->queryBuilderForTotal($queryBuilder, $criteria);
-            $total = intval($this->queryForTranslatable($queryBuilderForTotal, $request)->getSingleScalarResult());
+            $total = intval($this->queryForTranslatable($queryBuilderForTotal)->getSingleScalarResult());
         } catch (NoResultException|NonUniqueResultException) {
             $total = 0;
         }
@@ -50,10 +51,10 @@ class Paginator implements PaginatorInterface
         return ['total' => $total, $collectionKey => $result];
     }
 
-    public function queryBuilderForResult(QueryBuilder $queryBuilder, Request $request, array $criteria = []): QueryBuilder
+    public function queryBuilderForResult(QueryBuilder $queryBuilder, array $criteria = []): QueryBuilder
     {
         $entityClass = $queryBuilder->getDQLPart('from')[0]->getFrom();
-        [$offset, $limit, $order] = $this->offsetLimitOrder($request, $entityClass);
+        [$offset, $limit, $order] = $this->offsetLimitOrder($entityClass);
         $rootAlias = $queryBuilder->getRootAliases()[0];
 
         $queryBuilderResult = clone $queryBuilder;
@@ -68,11 +69,11 @@ class Paginator implements PaginatorInterface
         return $queryBuilderResult;
     }
 
-    private function offsetLimitOrder(Request $request, string $entityClass): array
+    private function offsetLimitOrder(string $entityClass): array
     {
-        $offset = $request->query->getInt('offset');
-        $limit = $request->query->getInt('limit', self::LIMIT_DEFAULT);
-        $order = ($request->query->has('order') ? $request->query->all('order') : []);
+        $offset = $this->request->query->getInt('offset');
+        $limit = $this->request->query->getInt('limit', self::LIMIT_DEFAULT);
+        $order = ($this->request->query->has('order') ? $this->request->query->all('order') : []);
 
         foreach ($order as $field => $direction) {
             if (!in_array(strtoupper($direction), ['ASC', 'DESC']))
@@ -87,9 +88,9 @@ class Paginator implements PaginatorInterface
             $limit = self::LIMIT_DEFAULT;
         }
 
-        $request->query->set('limit', $limit);
-        $request->query->set('offset', $offset);
-        $request->query->set('order', $order);
+        $this->request->query->set('limit', $limit);
+        $this->request->query->set('offset', $offset);
+        $this->request->query->set('order', $order);
 
         return [$offset, $limit, $order];
     }
@@ -308,14 +309,14 @@ class Paginator implements PaginatorInterface
         }
     }
 
-    public function queryForTranslatable(QueryBuilder $queryBuilder, Request $request): Query
+    public function queryForTranslatable(QueryBuilder $queryBuilder): Query
     {
         $entityClass = $queryBuilder->getDQLPart('from')[0]->getFrom();
         $query = $queryBuilder->getQuery();
 
         if (in_array(Translatable::class, array_values(class_implements($entityClass)))) {
             $query->setHint(Query::HINT_CUSTOM_OUTPUT_WALKER, 'Gedmo\\Translatable\\Query\\TreeWalker\\TranslationWalker');
-            $query->setHint(TranslatableListener::HINT_TRANSLATABLE_LOCALE, $request->getLocale());
+            $query->setHint(TranslatableListener::HINT_TRANSLATABLE_LOCALE, $this->request->getLocale());
             $query->setHint(TranslatableListener::HINT_FALLBACK, 1);
         }
 
