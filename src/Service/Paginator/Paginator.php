@@ -309,14 +309,14 @@ class Paginator implements PaginatorInterface
         }
     }
 
-    public function queryForTranslatable(QueryBuilder $queryBuilder): Query
+    public function queryForTranslatable(QueryBuilder $queryBuilder, ?string $locale = null): Query
     {
         $entityClass = $queryBuilder->getDQLPart('from')[0]->getFrom();
         $query = $queryBuilder->getQuery();
 
         if (in_array(Translatable::class, array_values(class_implements($entityClass)))) {
             $query->setHint(Query::HINT_CUSTOM_OUTPUT_WALKER, 'Gedmo\\Translatable\\Query\\TreeWalker\\TranslationWalker');
-            $query->setHint(TranslatableListener::HINT_TRANSLATABLE_LOCALE, $this->request->getLocale());
+            $query->setHint(TranslatableListener::HINT_TRANSLATABLE_LOCALE, ($locale ?? $this->request->getLocale()));
             $query->setHint(TranslatableListener::HINT_FALLBACK, 1);
         }
 

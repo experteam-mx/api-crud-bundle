@@ -13,7 +13,7 @@ interface PaginatorInterface
 
     public function queryBuilderForResult(QueryBuilder $queryBuilder, array $criteria = []): QueryBuilder;
 
-    public function queryForTranslatable(QueryBuilder $queryBuilder): Query;
+    public function queryForTranslatable(QueryBuilder $queryBuilder, ?string $locale = null): Query;
 
     public function queryBuilderForTotal(QueryBuilder $queryBuilder, array $criteria = []): QueryBuilder;
 }
