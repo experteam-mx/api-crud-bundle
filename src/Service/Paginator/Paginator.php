@@ -254,7 +254,7 @@ class Paginator implements PaginatorInterface
     protected function getFilterWhere(string $filter, string $alias, string $field, ?string $value): array
     {
         $expr = new Expr();
-        $parameter = "{$alias}_$field";
+        $parameter = "{$alias}_{$field}_$filter";
 
         switch ($filter) {
             case 'lk':
