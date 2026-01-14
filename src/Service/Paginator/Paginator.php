@@ -145,17 +145,19 @@ class Paginator implements PaginatorInterface
                 : [$rootAlias, $field];
 
             if (is_array($value)) {
-                $filter = array_key_first($value);
-                $v = $value[$filter];
+                foreach (array_keys($value) as $filter) {
+                    $v = $value[$filter];
 
-                if (is_numeric($filter))
-                    $whereGrouped[$filter][] = [$alias, $_field, $v];
-                elseif (!is_array($v)) {
-                    [$operator, $expression, $parameter, $value] = $this->getFilterWhere($filter, $alias, $_field, $v);
-                    $this->updateDQL($dql, $operator, $expression);
-                    $parameters[$parameter] = $value;
-                } else
-                    throw new BadRequestHttpException(sprintf('Incorrect format for "%s" parameter', $field));
+                    if (is_numeric($filter)) {
+                        $whereGrouped[$filter][] = [$alias, $_field, $v];
+                    } elseif (!is_array($v)) {
+                        [$operator, $expression, $parameter, $v] = $this->getFilterWhere($filter, $alias, $_field, $v);
+                        $this->updateDQL($dql, $operator, $expression);
+                        $parameters[$parameter] = $v;
+                    } else {
+                        throw new BadRequestHttpException(sprintf('Incorrect format for "%s" parameter', $field));
+                    }
+                }
             } else {
                 $parameter = "{$alias}_$_field";
                 $this->updateDQL($dql, self::AND, "$alias.$_field = :$parameter");
